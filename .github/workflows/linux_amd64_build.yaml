@@ -13,6 +13,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: "Cehck out version"
+        run: |
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          echo "BUILDER_VERSION: $BUILDER_VERSION"
+
       - name: 'Set up Python 3.11'
         # Using a specific Python version is good practice
         uses: actions/setup-python@v5
