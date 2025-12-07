@@ -31,7 +31,7 @@ jobs:
       - name: 'Install latest LLVM (Clang)'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm clang
+          sudo apt-get install -y llvm-20 clang-20
 
       - name: 'Setup Bazelisk (for Bazel)'
         # This action installs and caches the correct Bazel version
