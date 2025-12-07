@@ -1,4 +1,4 @@
-name: 'Build linux/amd64 XLA PJRT CPU Plugin'
+name: "Build linux/amd64 XLA PJRT CPU Plugin"
 
 # This allows the workflow to be triggered manually from the
 # GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-package-linux-amd64:
-    name: 'Build Linux (amd64) Plugin'
+    name: "Build Linux (amd64) Plugin"
 
     # We use ubuntu-latest, which is the GitHub-hosted runner for Linux (amd64)
     runs-on: ubuntu-latest
@@ -16,13 +16,13 @@ jobs:
       - uses: actions/checkout@v4
       # Check out the pjrt-cpu-binaries repository
 
-      - name: 'Set up Python 3.11'
+      - name: "Set up Python 3.11"
         # Using a specific Python version is good practice
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: 'Install Python dependencies into a venv'
+      - name: "Install Python dependencies into a venv"
         run: |
           # Create a virtual environment
           python3 -m venv venv
@@ -31,28 +31,28 @@ jobs:
           # Install packages *into* the venv
           pip install six numpy
 
-      - name: 'Install latest LLVM (Clang)'
+      - name: "Install latest LLVM (Clang)"
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-20 clang-20
 
-      - name: 'Setup Bazelisk (for Bazel)'
+      - name: "Setup Bazelisk (for Bazel)"
         # This action installs and caches the correct Bazel version
         # specified by the .bazelversion file in the XLA repo.
         uses: bazelbuild/setup-bazelisk@v3
 
-      - name: 'Check out openxla/xla repository'
+      - name: "Check out openxla/xla repository"
         # This checks out the external XLA repo, not the repo this
         # workflow lives in.
         uses: actions/checkout@v4
         with:
-          repository: 'openxla/xla'
+          repository: "openxla/xla"
           # Check out to a specific 'xla' directory
-          path: 'xla'
+          path: "xla"
           # Ensure submodules (like LLVM) are also checked out
-          submodules: 'recursive'
+          submodules: "recursive"
 
-      - name: 'Build PJRT C API CPU plugin'
+      - name: "Build PJRT C API CPU plugin"
         run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
@@ -71,16 +71,16 @@ jobs:
           export CC="$LLVM_PATH/bin/clang"
           export CXX="$LLVM_PATH/bin/clang++"
           export HERMETIC_PYTHON_VERSION=3.11
-          
+
           cd xla
           printf "\nConfiguring XLA build:\n"
           ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
-          
+
           printf "\nStarting XLA bazel build:\n"
           bazel build -c opt //xla/service/cpu:runtime_matmul
           bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
-      - name: 'Package the binary'
+      - name: "Package the binary"
         run: |
           # Create the tarball.
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
@@ -90,7 +90,7 @@ jobs:
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
 
           # 1. Extract the Major and Minor version numbers from the header file.
-          # The 'awk' command assumes the version number is the third word on the line, 
+          # The 'awk' command assumes the version number is the third word on the line,
           # e.g., '#define PJRT_API_MINOR 83'
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
@@ -112,7 +112,7 @@ jobs:
           tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME}
           echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
 
-      - name: 'Upload plugin artifact'
+      - name: "Upload plugin artifact"
         # This action uploads the generated file as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
