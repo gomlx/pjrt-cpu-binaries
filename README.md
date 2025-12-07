@@ -12,3 +12,9 @@ These are kept on a separate repository to decouple the versioning from `go-xla`
 * **PJRT**: the name for an XLA "plugin" that implements it for one hardware. To use XLA, you need the PJRT plugin installed for the hardware you are going to use.
   It's a C/C++ dynamic library.
 * **`go-xla`**: a Go library to (1) Generate _StableHLO_; (2) Dynamically load and a wrap PJRT plugins APIs to a Go API.
+
+## Release Version Numbers
+
+The releases will take the form of `v<A>.<B>.<C>`, where `<A>` are the `PJRT_API_MAJOR` and `PJRT_API_MINOR` constants, 
+as defined in [XLA sources](https://github.com/openxla/xla/blob/main/xla/pjrt/c/pjrt_c_api.h#L92).
+And `<C>` is an increasing number added by `pjrt-cpu-binaries`.
