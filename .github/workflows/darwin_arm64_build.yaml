@@ -15,11 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Check out project version"
-        run: |
-          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
-          echo "BUILDER_VERSION: $BUILDER_VERSION"
-
       - name: 'Set up Python 3.11'
         # Using a specific Python version is good practice
         uses: actions/setup-python@v5
@@ -57,6 +52,11 @@ jobs:
 
       - name: 'Build PJRT C API CPU plugin'
         run: |
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+
           source venv/bin/activate
           # Point Bazel to the Homebrew-installed LLVM/Clang
           # This is the standard path for Homebrew on Apple Silicon runners
