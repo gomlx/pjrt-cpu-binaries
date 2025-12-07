@@ -16,7 +16,7 @@ jobs:
       - name: "Install Minimal Action Tools (tar, git)"
         run: |
           dnf update -y
-          dnf install -y tar git
+          dnf install -y tar git curl xz
 
       - name: "Checkout current repository"
         uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
           mkdir -p ${INSTALL_DIR}
           # Extract the contents and move the inner directory's contents to /opt/llvm
           # --strip-components=1 removes the top-level directory in the archive.
-          tar -xf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
+          tar -xJf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
           rm llvm_temp.tar.xz
 
           # Make sure the compiler is executable
