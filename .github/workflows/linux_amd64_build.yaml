@@ -54,7 +54,7 @@ jobs:
           source venv/bin/activate
           # Point Bazel to the system-installed LLVM/Clang
           # On Ubuntu, LLVM is typically installed in /usr/lib/llvm-<version>
-          LLVM_VERSION=$(ls -1 /usr/lib/llvm-* | head -1 | sed 's|/usr/lib/llvm-||')
+          LLVM_VERSION=20
           export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
           export PATH="$LLVM_PATH/bin:$PATH"
           export LDFLAGS="-L$LLVM_PATH/lib"
