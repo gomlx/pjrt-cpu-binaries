@@ -1,0 +1,109 @@
+name: "Build amazonlinux/amd64 XLA PJRT CPU Plugin (AL2023/Glibc 2.34)"
+
+# This allows the workflow to be triggered manually from the GitHub UI
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-package-amazonlinux-amd64:
+    name: "Build Amazon Linux 2023 (amd64) Plugin"
+
+    # Use the Amazon Linux 2023 Docker container image
+    # to ensure compatibility with a well-tested, long-term support glibc.
+    runs-on: ubuntu-latest
+    container: amazonlinux:2023
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "Install Python dependencies into a venv"
+        run: |
+          # Create a virtual environment
+          python3 -m venv venv
+          # Activate the virtual environment
+          source venv/bin/activate
+          # Install packages *into* the venv
+          pip install six numpy
+
+      - name: "Install Clang and Build Dependencies (via dnf)"
+        run: |
+          # Amazon Linux 2023 uses 'dnf' (not 'yum' or 'apt-get').
+          # We don't need 'sudo' inside the container.
+          dnf update -y
+          # 'clang' package is expected to be a recent version (17+) on AL2023
+          dnf install -y clang llvm-devel gcc-c++ make
+
+      - name: "Setup Bazelisk (for Bazel)"
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: "Check out openxla/xla repository"
+        uses: actions/checkout@v4
+        with:
+          repository: "openxla/xla"
+          path: "xla"
+          submodules: "recursive"
+
+      - name: "Build PJRT C API CPU plugin"
+        run: |
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+
+          source venv/bin/activate
+          # Point Bazel to the system-installed Clang in AL2023
+          export CC="/usr/bin/clang"
+          export CXX="/usr/bin/clang++"
+          export HERMETIC_PYTHON_VERSION=3.11
+
+          cd xla
+          printf "\nConfiguring XLA build:\n"
+          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "/usr/bin/clang"
+
+          printf "\nStarting XLA bazel build:\n"
+          bazel build -c opt //xla/service/cpu:runtime_matmul
+          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+
+      - name: "Package the binary"
+        run: |
+          # Create the tarball.
+          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+          # Changed tarball name
+          TARBALL_NAME="pjrt_cpu_amazonlinux_amd64.tar.gz"
+          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+
+          # 1. Extract the Major and Minor version numbers from the header file.
+          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+              echo "Error: Could not extract PJRT API version from ${PJRT_C_API_HEADER}. Aborting." >&2
+              exit 1
+          fi
+
+          # 2. Construct the full version string and the new filename.
+          PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}"
+          # Changed binary name to reflect the environment
+          NEW_BINARY_NAME="pjrt_c_api_cpu_amazonlinux_${PJRT_VERSION}_plugin.so"
+          echo "Extracted PJRT Version: ${PJRT_VERSION}"
+          echo "New Binary Name: ${NEW_BINARY_NAME}"
+          mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}"
+
+          # The -C flag tells tar to change to BINARY_DIR first.
+          tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME}
+          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+
+      - name: "Upload plugin artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          # Changed artifact name
+          name: pjrt_cpu_amazonlinux_amd64
+          path: pjrt_cpu_amazonlinux_amd64.tar.gz
+          retention-days: 3
