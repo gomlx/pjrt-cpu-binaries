@@ -23,7 +23,7 @@ jobs:
 
       - name: "Install Build Toolchain and Python Environment (dnf)"
         run: |
-          dnf install -y make gcc-c++ clang llvm-devel python3 python3-pip python3-devel
+          dnf install -y make python3 python3-pip python3-devel
 
       - name: "Install Python dependencies (numpy, six)"
         run: |
@@ -39,6 +39,33 @@ jobs:
           path: "xla"
           submodules: "recursive"
 
+      - name: "Download and Setup LLVM/Clang"
+        run: |
+          # --- Configuration: Adjust these variables for the desired LLVM release ---
+          # NOTE: The file name must be verified on the LLVM GitHub releases page.
+          LLVM_VERSION="21.1.7" # Example: A known stable version
+          # Assuming the generic x86_64 Linux archive structure
+          ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+          DOWNLOAD_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${ARCHIVE_NAME}"
+          INSTALL_DIR="/opt/llvm"
+
+          echo "Downloading LLVM ${LLVM_VERSION} from GitHub releases..."
+          curl -sSL --fail ${DOWNLOAD_URL} -o llvm_temp.tar.xz
+
+          if [ $? -ne 0 ]; then
+              echo "Error: Failed to download LLVM archive from ${DOWNLOAD_URL}. Check the URL and file name." >&2
+              exit 1
+          fi
+
+          mkdir -p ${INSTALL_DIR}
+          # Extract the contents and move the inner directory's contents to /opt/llvm
+          # --strip-components=1 removes the top-level directory in the archive.
+          tar -xf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
+          rm llvm_temp.tar.xz
+
+          # Make sure the compiler is executable
+          chmod +x ${INSTALL_DIR}/bin/*
+
       - name: "Build PJRT C API CPU plugin"
         run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
@@ -48,13 +75,13 @@ jobs:
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
 
           # Point Bazel to the system-installed Clang in AL2023
-          export CC="/usr/bin/clang"
-          export CXX="/usr/bin/clang++"
+          export CC="/opt/llvm/bin/clang"
+          export CXX="/opt/llvm/bin/clang++"
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla
           printf "\nConfiguring XLA build:\n"
-          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "/usr/bin/clang"
+          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${CC}"
 
           printf "\nStarting XLA bazel build:\n"
           bazel build -c opt //xla/service/cpu:runtime_matmul
