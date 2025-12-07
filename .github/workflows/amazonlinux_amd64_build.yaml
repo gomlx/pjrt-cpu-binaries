@@ -1,4 +1,4 @@
-name: "Build amazonlinux/amd64 XLA PJRT CPU Plugin (AL2023/Low Glibc)"
+name: "Build amazonlinux/amd64 XLA PJRT CPU Plugin (AL2023/Glibc 2.35)"
 
 # This allows the workflow to be triggered manually from the GitHub UI
 on:
