@@ -13,21 +13,17 @@ jobs:
     container: amazonlinux:2023
 
     steps:
-      - name: "Install Minimal Action Tools (tar, git)"
+      - name: "Install tools and Python (tar, git, make, gcc, python3, python3-pip, python3-devel)"
         run: |
           dnf update -y
-          dnf install -y tar git curl xz
+          dnf install -y --allowerasing \
+            git tar make gcc-c++ \
+            python3 python3-pip python3-devel \
+            curl xz
+          pip3 install six numpy
 
       - name: "Checkout current repository"
         uses: actions/checkout@v4
-
-      - name: "Install Build Toolchain and Python Environment (dnf)"
-        run: |
-          dnf install -y make python3 python3-pip python3-devel
-
-      - name: "Install Python dependencies (numpy, six)"
-        run: |
-          pip3 install six numpy
 
       - name: "Setup Bazelisk (for Bazel)"
         uses: bazelbuild/setup-bazelisk@v3
@@ -77,6 +73,7 @@ jobs:
           # Point Bazel to the system-installed Clang in AL2023
           export CC="/opt/llvm/bin/clang"
           export CXX="/opt/llvm/bin/clang++"
+          export LLVM_VERSION=21
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla

@@ -13,9 +13,10 @@ RUN dnf update -y && \
 
 # --- Manual LLVM/Clang Installation ---
 # Downloads a modern Clang from GitHub Releases and installs it to /opt/llvm
-ARG LLVM_VERSION="21.1.7" 
+ARG LLVM_VERSION="21.1.7"
 ARG LLVM_ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
 ENV INSTALL_DIR="/opt/llvm21"
+ENV LLVM_VERSION=21
 
 RUN mkdir -p ${INSTALL_DIR} && \
 	curl -'#' -L --fail "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${LLVM_ARCHIVE_NAME}" -o llvm_temp.tar.xz && \
@@ -67,7 +68,6 @@ RUN XLA_COMMIT_HASH="$(cat XLA_COMMIT_HASH.txt)" && \
 # --- Build Command ---
 # Define the command to build the PJRT CPU plugin.
 # This logic is extracted from the "Build PJRT C API CPU plugin" step in the YAML.
-ENV LLVM_VERSION=21
 RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
     PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h" && \
     MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}') && \
@@ -76,7 +76,7 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
     \
     cd xla && \
     printf "\nConfiguring XLA build:\n" && \
-    echo ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${INSTALL_DIR}/bin/clang" && \    
+    echo ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${INSTALL_DIR}/bin/clang" && \
     ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${INSTALL_DIR}/bin/clang" && \
     \
     printf "\nStarting XLA bazel build:\n" && \
