@@ -55,6 +55,7 @@ jobs:
       - name: 'Build PJRT C API CPU plugin'
         run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
