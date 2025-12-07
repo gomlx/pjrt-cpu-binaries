@@ -5,7 +5,7 @@ These are kept on a separate repository to decouple the versioning from `go-xla`
 
 ## Glossary:
 
-* **GoMLX**: a machine learning framework for Go.
+* **GoMLX**: a machine learning framework for Go that uses XLA as its main backend for performatic "number crunching".
 * **XLA**: or OpenXLA, is a Just-In-Time compiler of computations with support for various hardwares (CPU, various GPU, TPU, etc).
   It uses an "intermediary representation" (a textual language, not very human friendly) called _StableHLO_ to describe teh computation to be built.
   It's an accelerated "number crunching" engine.
