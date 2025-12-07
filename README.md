@@ -18,3 +18,5 @@ These are kept on a separate repository to decouple the versioning from `go-xla`
 The releases will take the form of `v<A>.<B>.<C>`, where `<A>` are the `PJRT_API_MAJOR` and `PJRT_API_MINOR` constants, 
 as defined in [XLA sources](https://github.com/openxla/xla/blob/main/xla/pjrt/c/pjrt_c_api.h#L92).
 And `<C>` is an increasing number added by `pjrt-cpu-binaries`.
+
+E.g.: `v0.83.1` refers to a build based on XLA's PJRT version **0.83**, and `pjrt-cpu-binaries` build number 1.
