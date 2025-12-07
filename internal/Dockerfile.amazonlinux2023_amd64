@@ -83,6 +83,21 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
     bazel build -c opt //xla/service/cpu:runtime_matmul && \
     bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
+# --- Package command ---
+RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
+    PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h" && \
+    MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}') && \
+    MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}') && \
+    PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}" && \
+    NEW_BINARY_NAME="pjrt_c_api_cpu_amazonlinux_${PJRT_VERSION}_plugin.so" && \
+    BINARY_DIR="xla/bazel-bin/xla/pjrt/c" && \
+    TARBALL_NAME="pjrt_cpu_amazonlinux_amd64.tar.gz" && \
+    echo "PJRT Version: ${PJRT_VERSION}" && \
+    echo "New Binary Name: ${NEW_BINARY_NAME}" && \
+    mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}" && \
+    tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME} && \
+    echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+
 # --- Packaging Command (This requires a final step outside of the Dockerfile) ---
 # The final steps to rename and tar the file are best performed as a separate
 # command after the image is built, by running a temporary container.

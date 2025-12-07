@@ -106,7 +106,7 @@ jobs:
           # 2. Construct the full version string and the new filename.
           PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}"
           NEW_BINARY_NAME="pjrt_c_api_cpu_amazonlinux_${PJRT_VERSION}_plugin.so"
-          echo "Extracted PJRT Version: ${PJRT_VERSION}"
+          echo "Generated PJRT Version: ${PJRT_VERSION}"
           echo "New Binary Name: ${NEW_BINARY_NAME}"
           mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}"
 
