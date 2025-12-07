@@ -28,12 +28,14 @@ jobs:
       - name: "Setup Bazelisk (for Bazel)"
         uses: bazelbuild/setup-bazelisk@v3
 
-      - name: "Check out openxla/xla repository"
-        uses: actions/checkout@v4
-        with:
-          repository: "openxla/xla"
-          path: "xla"
-          submodules: "recursive"
+      - name: "Clone and Checkout XLA"
+        run: |
+          git clone https://github.com/openxla/xla xla
+          cd xla
+          # This is the command to checkout the specific hash from the file
+          HASH=$(cat ../XLA_COMMIT_HASH.txt)
+          echo "Checking out XLA at commit: $HASH"
+          git checkout $HASH
 
       - name: "Download and Setup LLVM/Clang"
         run: |
