@@ -41,16 +41,14 @@ jobs:
         # specified by the .bazelversion file in the XLA repo.
         uses: bazelbuild/setup-bazelisk@v3
 
-      - name: "Check out openxla/xla repository"
-        # This checks out the external XLA repo, not the repo this
-        # workflow lives in.
-        uses: actions/checkout@v4
-        with:
-          repository: "openxla/xla"
-          # Check out to a specific 'xla' directory
-          path: "xla"
-          # Ensure submodules (like LLVM) are also checked out
-          submodules: "recursive"
+      - name: "Clone and checkout XLA"
+        run: |
+          git clone https://github.com/openxla/xla xla
+          cd xla
+          # This is the command to checkout the specific hash from the file
+          HASH=$(cat ../XLA_COMMIT_HASH.txt)
+          echo "Checking out XLA at commit: $HASH"
+          git checkout $HASH
 
       - name: "Build PJRT C API CPU plugin"
         run: |

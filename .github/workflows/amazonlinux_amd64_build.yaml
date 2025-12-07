@@ -28,7 +28,7 @@ jobs:
       - name: "Setup Bazelisk (for Bazel)"
         uses: bazelbuild/setup-bazelisk@v3
 
-      - name: "Clone and Checkout XLA"
+      - name: "Clone and checkout XLA"
         run: |
           git clone https://github.com/openxla/xla xla
           cd xla
