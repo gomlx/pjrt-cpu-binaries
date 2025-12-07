@@ -13,38 +13,58 @@ jobs:
     container: amazonlinux:2023
 
     steps:
-      - name: "Install All Build Dependencies and Setup Environment (dnf)"
-        # Install minimal utilities (tar, git) needed by GitHub Actions and
-        # the build toolchain (clang, llvm-devel) using dnf.
+      - name: "Install Minimal Action Tools (tar, git)"
         run: |
           dnf update -y
-          dnf install -y tar git python3 python3-pip make gcc-c++ clang llvm-devel
+          dnf install -y tar git curl xz
 
-      - name: "Set up Python 3.11"
-        # This step uses the Python 3 installed in the previous step.
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: "Checkout current repository"
+        uses: actions/checkout@v4
 
-      - name: "Install Python dependencies into a venv"
+      - name: "Install Build Toolchain and Python Environment (dnf)"
         run: |
-          # Create a virtual environment
-          python3 -m venv venv
-          # Activate the virtual environment
-          source venv/bin/activate
-          # Install packages *into* the venv
-          pip install six numpy
+          dnf install -y make python3 python3-pip python3-devel
+
+      - name: "Install Python dependencies (numpy, six)"
+        run: |
+          pip3 install six numpy
 
       - name: "Setup Bazelisk (for Bazel)"
         uses: bazelbuild/setup-bazelisk@v3
 
       - name: "Check out openxla/xla repository"
-        # This checkout uses 'git' which is now installed.
         uses: actions/checkout@v4
         with:
           repository: "openxla/xla"
           path: "xla"
           submodules: "recursive"
+
+      - name: "Download and Setup LLVM/Clang"
+        run: |
+          # --- Configuration: Adjust these variables for the desired LLVM release ---
+          # NOTE: The file name must be verified on the LLVM GitHub releases page.
+          LLVM_VERSION="21.1.7" # Example: A known stable version
+          # Assuming the generic x86_64 Linux archive structure
+          ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+          DOWNLOAD_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${ARCHIVE_NAME}"
+          INSTALL_DIR="/opt/llvm"
+
+          echo "Downloading LLVM ${LLVM_VERSION} from GitHub releases..."
+          curl -sSL --fail ${DOWNLOAD_URL} -o llvm_temp.tar.xz
+
+          if [ $? -ne 0 ]; then
+              echo "Error: Failed to download LLVM archive from ${DOWNLOAD_URL}. Check the URL and file name." >&2
+              exit 1
+          fi
+
+          mkdir -p ${INSTALL_DIR}
+          # Extract the contents and move the inner directory's contents to /opt/llvm
+          # --strip-components=1 removes the top-level directory in the archive.
+          tar -xJf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
+          rm llvm_temp.tar.xz
+
+          # Make sure the compiler is executable
+          chmod +x ${INSTALL_DIR}/bin/*
 
       - name: "Build PJRT C API CPU plugin"
         run: |
@@ -54,16 +74,14 @@ jobs:
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
 
-          source venv/bin/activate
-
           # Point Bazel to the system-installed Clang in AL2023
-          export CC="/usr/bin/clang"
-          export CXX="/usr/bin/clang++"
+          export CC="/opt/llvm/bin/clang"
+          export CXX="/opt/llvm/bin/clang++"
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla
           printf "\nConfiguring XLA build:\n"
-          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "/usr/bin/clang"
+          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${CC}"
 
           printf "\nStarting XLA bazel build:\n"
           bazel build -c opt //xla/service/cpu:runtime_matmul
