@@ -13,33 +13,27 @@ jobs:
     container: amazonlinux:2023
 
     steps:
-      - name: "Install All Build Dependencies and Setup Environment (dnf)"
-        # Install minimal utilities (tar, git) needed by GitHub Actions and
-        # the build toolchain (clang, llvm-devel) using dnf.
+      - name: "Install All Build Dependencies and Python Environment (dnf)"
+        # Install essential utilities, build toolchain, and system Python
         run: |
           dnf update -y
-          dnf install -y tar git python3 python3-pip make gcc-c++ clang llvm-devel
+          # Install basic tools (tar, git)
+          dnf install -y tar git make
+          # Install C/C++ toolchain (clang, llvm-devel)
+          dnf install -y clang llvm-devel gcc-c++
+          # Install Python 3, pip, and headers (needed for numpy compilation)
+          dnf install -y python3 python3-pip python3-devel
 
-      - name: "Set up Python 3.11"
-        # This step uses the Python 3 installed in the previous step.
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: "Install Python dependencies into a venv"
+      - name: "Install Python dependencies (numpy, six)"
         run: |
-          # Create a virtual environment
-          python3 -m venv venv
-          # Activate the virtual environment
-          source venv/bin/activate
-          # Install packages *into* the venv
-          pip install six numpy
+          # Use the system's pip3 to install packages directly.
+          # This avoids the GLIBC compatibility issue of the actions/setup-python
+          pip3 install six numpy
 
       - name: "Setup Bazelisk (for Bazel)"
         uses: bazelbuild/setup-bazelisk@v3
 
       - name: "Check out openxla/xla repository"
-        # This checkout uses 'git' which is now installed.
         uses: actions/checkout@v4
         with:
           repository: "openxla/xla"
@@ -54,12 +48,13 @@ jobs:
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
 
-          source venv/bin/activate
-
+          # No need to activate venv, using system Python 3 and installed packages
+          
           # Point Bazel to the system-installed Clang in AL2023
           export CC="/usr/bin/clang"
           export CXX="/usr/bin/clang++"
-          export HERMETIC_PYTHON_VERSION=3.11
+          # Set the Python version, likely 3.9 or 3.11 depending on the AL2023 image version
+          export HERMETIC_PYTHON_VERSION=3.11 
 
           cd xla
           printf "\nConfiguring XLA build:\n"
