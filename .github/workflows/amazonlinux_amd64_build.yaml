@@ -13,23 +13,19 @@ jobs:
     container: amazonlinux:2023
 
     steps:
-      - name: "Checkout current repository"
-        # This step is crucial inside containers to make files like BUILDER_VERSION.txt available.
-        uses: actions/checkout@v4
-
-      - name: "Install All Build Dependencies and Python Environment (dnf)"
-        # Install essential utilities, build toolchain, and system Python
+      - name: "Install Minimal Action Tools (tar, git)"
         run: |
           dnf update -y
-          # Install basic tools (tar, git)
-          dnf install -y tar git make
-          # Install C/C++ toolchain (clang, llvm-devel)
-          dnf install -y clang llvm-devel gcc-c++
-          # Install Python 3, pip, and headers (needed for numpy compilation)
-          dnf install -y python3 python3-pip python3-devel
+          dnf install -y tar git
+
+      - name: "Checkout current repository"
+        uses: actions/checkout@v4
+
+      - name: "Install Build Toolchain and Python Environment (dnf)"
+        run: |
+          dnf install -y make gcc-c++ clang llvm-devel python3 python3-pip python3-devel
 
       - name: "Install Python dependencies (numpy, six)"
-        # Using the system's pip3 to avoid GLIBC compatibility issues
         run: |
           pip3 install six numpy
 
@@ -45,7 +41,6 @@ jobs:
 
       - name: "Build PJRT C API CPU plugin"
         run: |
-          # BUILDER_VERSION.txt is now available because of the first checkout step.
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
