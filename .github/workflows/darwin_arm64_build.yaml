@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Cehck out version"
+      - name: "Check out project version"
         run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           echo "BUILDER_VERSION: $BUILDER_VERSION"
