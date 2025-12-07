@@ -20,3 +20,21 @@ as defined in [XLA sources](https://github.com/openxla/xla/blob/main/xla/pjrt/c/
 And `<C>` is an increasing number added by `pjrt-cpu-binaries`.
 
 E.g.: `v0.83.1` refers to a build based on XLA's PJRT version **0.83**, and `pjrt-cpu-binaries` build number 1.
+
+## Building new PJRT CPU
+
+1. Update the github.com/openxla/xla commit hash number in the file `XLA_COMMIT_HASH.txt`
+2. Bump the number in `BUILDER_VERSION.txt`
+3. Push, run the GitHub actions: they will generate one asset each, with the file `pjrt_cpu_<os_cpu>.tar.gz`.
+   Download those.
+4. Create a new release, matching the version of the file inside the PJRT `tar.gz` files (a mix of XLA version with the number in `BUILDER_VERSION.txt`).
+   Attach the binary releases.
+   
+For now the `AmazonLinux` build seem to run out of disk space in the GitHub action, so instead there is a
+`Dockerfile.amazonlinux2023_amd64` that will generate the file `pjrt_cpu_amazonlinux_amd64.tar.gz`.
+It is also faster to run locally (if you have a good desktop) than in the GitHub cloud.
+To do that use:
+
+```bash
+docker build -f Dockerfile --target export --output type=local,dest=. .
+```

@@ -1,7 +1,6 @@
 # Use Amazon Linux 2023 as the base image for glibc compatibility
 FROM amazonlinux:2023
 
-
 # --- Install Dependencies and Fix DNF Conflict ---
 # Fix DNF package conflict (curl-minimal vs curl) with --allowerasing
 # Install tools: git, tar, make, C++ toolchain headers, python, pip, xz, curl
@@ -13,13 +12,13 @@ RUN dnf update -y && \
 
 # --- Manual LLVM/Clang Installation ---
 # Downloads a modern Clang from GitHub Releases and installs it to /opt/llvm
-ARG LLVM_VERSION="21.1.7"
-ARG LLVM_ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+ARG LLVM_FULL_VERSION="21.1.7"
+ARG LLVM_ARCHIVE_NAME="LLVM-${LLVM_FULL_VERSION}-Linux-X64.tar.xz"
 ENV INSTALL_DIR="/opt/llvm21"
 ENV LLVM_VERSION=21
-
-RUN mkdir -p ${INSTALL_DIR} && \
-	curl -'#' -L --fail "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${LLVM_ARCHIVE_NAME}" -o llvm_temp.tar.xz && \
+RUN mkdir -p "${INSTALL_DIR}" && \
+	echo "Fetching https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_FULL_VERSION}/${LLVM_ARCHIVE_NAME}" && \
+	curl -'#' -L --fail "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_FULL_VERSION}/${LLVM_ARCHIVE_NAME}" -o llvm_temp.tar.xz && \
     echo "Download complete. Extracting..." && \
     tar -xJf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR} && \
     rm llvm_temp.tar.xz && \
@@ -89,7 +88,8 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
     MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}') && \
     MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}') && \
     PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}" && \
-    NEW_BINARY_NAME="pjrt_c_api_cpu_amazonlinux_${PJRT_VERSION}_plugin.so" && \
+    BINARY_NAME="pjrt_c_api_cpu_plugin.so" && \
+    NEW_BINARY_NAME="pjrt_c_api_cpu_${PJRT_VERSION}_plugin.so" && \
     BINARY_DIR="xla/bazel-bin/xla/pjrt/c" && \
     TARBALL_NAME="pjrt_cpu_amazonlinux_amd64.tar.gz" && \
     echo "PJRT Version: ${PJRT_VERSION}" && \
@@ -104,3 +104,6 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
 
 # Use /bin/bash as the entry point for interactive exploration/debugging
 CMD ["/bin/bash"]
+
+FROM scratch AS export
+COPY --from=0 /app/pjrt_cpu_amazonlinux_amd64.tar.gz .
