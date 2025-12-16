@@ -2,7 +2,7 @@
 on:
   workflow_dispatch:
 
-name: Build PJRT
+name: "Build Windows (amd64) Plugin"
 
 permissions:
   contents: write
