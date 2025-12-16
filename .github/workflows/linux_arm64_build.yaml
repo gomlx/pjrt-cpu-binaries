@@ -1,0 +1,126 @@
+name: "Build linux/arm64 XLA PJRT CPU Plugin"
+
+# This allows the workflow to be triggered manually from the
+# GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-package-linux-arm64:
+    name: "Build Linux (arm64) Plugin"
+
+    # GitHub-hosted ARM64 runner
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+      # Check out the pjrt-cpu-binaries repository
+
+      - name: "Set up Python 3.11"
+        # Using a specific Python version is good practice
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "Install Python dependencies into a venv"
+        run: |
+          # Create a virtual environment
+          python3 -m venv venv
+          # Activate the virtual environment
+          source venv/bin/activate
+          # Install packages *into* the venv
+          pip install six numpy
+
+      - name: "Install latest LLVM (Clang)"
+        run: |
+          # Add the official LLVM apt repository for Ubuntu 24.04 (Noble)
+          # See: https://apt.llvm.org/
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm-20.list
+          sudo apt-get update
+          sudo apt-get install -y llvm-20 clang-20
+
+      - name: "Setup Bazelisk (for Bazel)"
+        # This action installs and caches the correct Bazel version
+        # specified by the .bazelversion file in the XLA repo.
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: "Clone and checkout XLA"
+        run: |
+          git clone https://github.com/openxla/xla xla
+          cd xla
+          # This is the command to checkout the specific hash from the file
+          HASH=$(cat ../XLA_COMMIT_HASH.txt)
+          echo "Checking out XLA at commit: $HASH"
+          git checkout $HASH
+
+      - name: "Build PJRT C API CPU plugin"
+        run: |
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+
+          source venv/bin/activate
+          # Point Bazel to the system-installed LLVM/Clang
+          # On Ubuntu, LLVM is typically installed in /usr/lib/llvm-<version>
+          LLVM_VERSION=20
+          export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
+          export PATH="$LLVM_PATH/bin:$PATH"
+          export LDFLAGS="-L$LLVM_PATH/lib"
+          export CPPFLAGS="-I$LLVM_PATH/include"
+          export CC="$LLVM_PATH/bin/clang"
+          export CXX="$LLVM_PATH/bin/clang++"
+          export HERMETIC_PYTHON_VERSION=3.11
+
+          cd xla
+          printf "\nConfiguring XLA build:\n"
+          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
+
+          printf "\nStarting XLA bazel build:\n"
+          bazel build -c opt //xla/service/cpu:runtime_matmul
+          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+
+      - name: "Package the binary"
+        run: |
+          # Create the tarball.
+          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+          TARBALL_NAME="pjrt_cpu_linux_arm64.tar.gz"
+          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+
+          # 1. Extract the Major and Minor version numbers from the header file.
+          # The 'awk' command assumes the version number is the third word on the line,
+          # e.g., '#define PJRT_API_MINOR 83'
+          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+          # Check if the extraction was successful (optional but recommended)
+          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+              echo "Error: Could not extract PJRT API version from ${PJRT_C_API_HEADER}. Aborting." >&2
+              exit 1
+          fi
+
+          # 2. Construct the full version string and the new filename.
+          PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}"
+          NEW_BINARY_NAME="pjrt_c_api_cpu_${PJRT_VERSION}_plugin.so"
+          echo "Extracted PJRT Version: ${PJRT_VERSION}"
+          echo "New Binary Name: ${NEW_BINARY_NAME}"
+          mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}"
+
+          # The -C flag tells tar to change to BINARY_DIR first,
+          # so that NEW_BINARY_NAME is added to the archive at its root.
+          tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME}
+          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+
+      - name: "Upload plugin artifact"
+        # This action uploads the generated file as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # This is the name of the artifact bundle in the GitHub UI
+          name: pjrt_cpu_linux_arm64
+          # This is the file to upload
+          path: pjrt_cpu_linux_arm64.tar.gz
+          # Set a reasonable retention period for the artifact
+          retention-days: 3
