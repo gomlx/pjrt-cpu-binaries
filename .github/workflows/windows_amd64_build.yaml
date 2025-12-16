@@ -61,6 +61,10 @@ jobs:
           sed -i 's|\\|/|g' xla_configure.bazelrc
           cat xla_configure.bazelrc
 
+          echo "Contents of pjrt_c_api_cpu.cc ----------"
+          cat ./xla/pjrt/c/pjrt_c_api_cpu.cc
+          echo
+
           echo "Applying dllexport patch ---------------"
           git apply --3way ../internal/patches/windows/export.patch
 
