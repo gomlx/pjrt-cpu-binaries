@@ -10,6 +10,7 @@ permissions:
 jobs:
   build:
     name: "Build Windows (amd64) Plugin"
+    runs-on: windows-latest
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
