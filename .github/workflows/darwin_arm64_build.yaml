@@ -65,7 +65,7 @@ jobs:
           export LLVM_PATH="/opt/homebrew/opt/llvm"
           export PATH="$LLVM_PATH/bin:$PATH"
           export CC="$LLVM_PATH/bin/clang"
-          export CXX="$LL_PATH/bin/clang++"
+          export CXX="$LLVM_PATH/bin/clang++"
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla
