@@ -62,7 +62,7 @@ jobs:
           cat xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
-          git apply ../internal/patches/windows/export.patch
+          git apply --3way ../internal/patches/windows/export.patch
 
       - run: |
           cd xla
