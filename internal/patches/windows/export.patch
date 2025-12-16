@@ -1,0 +1,10 @@
+diff --git a/xla/pjrt/c/pjrt_c_api_cpu.cc b/xla/pjrt/c/pjrt_c_api_cpu.cc
+index 90e391f8..d5d51dd4 100644
+--- a/xla/pjrt/c/pjrt_c_api_cpu.cc
++++ b/xla/pjrt/c/pjrt_c_api_cpu.cc
+@@ -17,4 +17,5 @@ limitations under the License.
+ #include "xla/pjrt/c/pjrt_c_api.h"
+ #include "xla/pjrt/c/pjrt_c_api_cpu_internal.h"
+ 
++extern "C" __declspec(dllexport)
+ const PJRT_Api* GetPjrtApi() { return pjrt::cpu_plugin::GetCpuPjrtApi(); }
