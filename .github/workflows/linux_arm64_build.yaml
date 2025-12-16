@@ -1,4 +1,4 @@
-name: "Build darwin/arm64 XLA PJRT CPU Plugin"
+name: "Build linux/arm64 XLA PJRT CPU Plugin"
 
 # This allows the workflow to be triggered manually from the
 # GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
@@ -6,14 +6,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-package-macos-arm64:
-    name: "Build macOS (arm64) Plugin"
+  build-and-package-linux-arm64:
+    name: "Build Linux (arm64) Plugin"
 
-    # We use macos-14, which is the GitHub-hosted runner for Apple Silicon (arm64)
-    runs-on: macos-latest
+    # GitHub-hosted ARM64 runner
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - uses: actions/checkout@v4
+      # Check out the pjrt-cpu-binaries repository
 
       - name: "Set up Python 3.11"
         # Using a specific Python version is good practice
@@ -32,7 +33,12 @@ jobs:
 
       - name: "Install latest LLVM (Clang)"
         run: |
-          brew install llvm
+          # Add the official LLVM apt repository for Ubuntu 24.04 (Noble)
+          # See: https://apt.llvm.org/
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm-20.list
+          sudo apt-get update
+          sudo apt-get install -y llvm-20 clang-20
 
       - name: "Setup Bazelisk (for Bazel)"
         # This action installs and caches the correct Bazel version
@@ -57,20 +63,20 @@ jobs:
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
 
           source venv/bin/activate
-          # Point Bazel to the Homebrew-installed LLVM/Clang
-          # This is the standard path for Homebrew on Apple Silicon runners
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-          export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
-          export LLVM_PATH="/opt/homebrew/opt/llvm"
+          # Point Bazel to the system-installed LLVM/Clang
+          # On Ubuntu, LLVM is typically installed in /usr/lib/llvm-<version>
+          LLVM_VERSION=20
+          export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
           export PATH="$LLVM_PATH/bin:$PATH"
+          export LDFLAGS="-L$LLVM_PATH/lib"
+          export CPPFLAGS="-I$LLVM_PATH/include"
           export CC="$LLVM_PATH/bin/clang"
           export CXX="$LLVM_PATH/bin/clang++"
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla
           printf "\nConfiguring XLA build:\n"
-          ./configure.py --backend CPU --os DARWIN --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
+          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
 
           printf "\nStarting XLA bazel build:\n"
           bazel build -c opt //xla/service/cpu:runtime_matmul
@@ -80,7 +86,7 @@ jobs:
         run: |
           # Create the tarball.
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
-          TARBALL_NAME="pjrt_cpu_darwin_arm64.tar.gz"
+          TARBALL_NAME="pjrt_cpu_linux_arm64.tar.gz"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
@@ -113,8 +119,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # This is the name of the artifact bundle in the GitHub UI
-          name: pjrt_cpu_darwin_arm64
+          name: pjrt_cpu_linux_arm64
           # This is the file to upload
-          path: pjrt_cpu_darwin_arm64.tar.gz
+          path: pjrt_cpu_linux_arm64.tar.gz
           # Set a reasonable retention period for the artifact
           retention-days: 3
