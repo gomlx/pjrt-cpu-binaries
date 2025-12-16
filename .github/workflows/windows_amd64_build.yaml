@@ -66,7 +66,8 @@ jobs:
           echo
 
           echo "Applying dllexport patch ---------------"
-          git apply --3way ../internal/patches/windows/export.patch
+          # --ignore-whitespace is required because of the CRLF vs LF difference in windows.
+          git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
       - run: |
           cd xla
