@@ -39,12 +39,13 @@ jobs:
           git checkout $HASH
 
       - run: |
+          # Extract version numbers
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
-          echo "RELEASE=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
 
       - run: |
           cd xla
@@ -60,10 +61,6 @@ jobs:
           # Convert all backslashes to forward slashes
           sed -i 's|\\|/|g' xla_configure.bazelrc
           cat xla_configure.bazelrc
-
-          echo "Contents of pjrt_c_api_cpu.cc ----------"
-          cat ./xla/pjrt/c/pjrt_c_api_cpu.cc
-          echo
 
           echo "Applying dllexport patch ---------------"
           # --ignore-whitespace is required because of the CRLF vs LF difference in windows.
@@ -105,14 +102,14 @@ jobs:
             --define xnn_enable_hvx=false \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
-      - name: "Package the binary"
+      - name: "Package the binary (zip)"
         run: |
           # Create the tarball.
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           ZIP_NAME="pjrt_cpu_windows_amd64.zip"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
-          TARGET_NAME="pjrt_c_api_cpu_plugin.dll"
+          TARGET_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.dll"
           mv "xla/bazel-bin/xla/pjrt/c/${BINARY_NAME}" "${TARGET_NAME}"
           7z a "$ZIP_NAME" "${TARGET_NAME}"
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
@@ -120,8 +117,8 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE }}
+          tag_name: ${{ env.RELEASE_VERSION }}
           files: ${{ env.ZIP_NAME }}
-          name: CPU
+          name: ${{ env.ZIP_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
