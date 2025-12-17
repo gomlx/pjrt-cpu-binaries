@@ -19,12 +19,23 @@ jobs:
       - uses: actions/checkout@v4
       # Check out the pjrt-cpu-binaries repository
 
+      - name: "Clone and checkout XLA"
+        run: |
+          git clone https://github.com/openxla/xla xla
+          cd xla
+          # This is the command to checkout the specific hash from the file
+          XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
+          echo "Checking out XLA at commit: $XLA_HASH"
+          git checkout $XLA_HASH
+          echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
       - name: "Set up Python 3.11"
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           # Optional: cache pip dependencies to speed up subsequent runs
           cache: "pip"
+          cache-dependency-path: "xla/requirements_lock_3_11.txt"
 
       - name: "Install Python dependencies"
         run: |
@@ -48,15 +59,6 @@ jobs:
         # This action installs and caches the correct Bazel version
         # specified by the .bazelversion file in the XLA repo.
         uses: bazelbuild/setup-bazelisk@v3
-
-      - name: "Clone and checkout XLA"
-        run: |
-          git clone https://github.com/openxla/xla xla
-          cd xla
-          # This is the command to checkout the specific hash from the file
-          HASH=$(cat ../XLA_COMMIT_HASH.txt)
-          echo "Checking out XLA at commit: $HASH"
-          git checkout $HASH
 
       - run: |
           # Extract version numbers
