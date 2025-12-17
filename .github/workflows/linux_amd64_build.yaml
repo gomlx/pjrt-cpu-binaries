@@ -9,32 +9,40 @@ jobs:
   build-and-package-linux-amd64:
     name: "Build Linux (amd64) Plugin"
 
-    # We use ubuntu-latest, which is the GitHub-hosted runner for Linux (amd64)
-    runs-on: ubuntu-latest
+    # We use ubuntu-22.04 for compatible with most clound Linuxes around.
+    # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
+    # and since glibc is backwards compatible, it should have no issues running on newer
+    # systems.
+    runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
 
     steps:
       - uses: actions/checkout@v4
       # Check out the pjrt-cpu-binaries repository
 
       - name: "Set up Python 3.11"
-        # Using a specific Python version is good practice
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          # Optional: cache pip dependencies to speed up subsequent runs
+          cache: "pip"
 
-      - name: "Install Python dependencies into a venv"
+      - name: "Install Python dependencies"
         run: |
-          # Create a virtual environment
-          python3 -m venv venv
-          # Activate the virtual environment
-          source venv/bin/activate
-          # Install packages *into* the venv
+          pip install --upgrade pip
           pip install six numpy
 
-      - name: "Install latest LLVM (Clang)"
+      - name: "Install LLVM 20"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm-20 clang-20
+          # LLVM 20 is very new, so we use the official LLVM apt repository script
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          sudo apt-get install -y clang-20 lld-20
+
+          # Create symlinks so Bazel finds 'clang' and 'ld.lld' as version 20
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-20 100
 
       - name: "Setup Bazelisk (for Bazel)"
         # This action installs and caches the correct Bazel version
@@ -50,57 +58,62 @@ jobs:
           echo "Checking out XLA at commit: $HASH"
           git checkout $HASH
 
-      - name: "Build PJRT C API CPU plugin"
-        run: |
+      - run: |
+          # Extract version numbers
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+          echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
 
-          source venv/bin/activate
-          # Point Bazel to the system-installed LLVM/Clang
-          # On Ubuntu, LLVM is typically installed in /usr/lib/llvm-<version>
+      - name: "Build PJRT C API CPU plugin"
+        run: |
           LLVM_VERSION=20
           export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
-          export PATH="$LLVM_PATH/bin:$PATH"
-          export LDFLAGS="-L$LLVM_PATH/lib"
-          export CPPFLAGS="-I$LLVM_PATH/include"
           export CC="$LLVM_PATH/bin/clang"
           export CXX="$LLVM_PATH/bin/clang++"
+          export BAZEL_COMPILER=clang
+          export PATH="$LLVM_PATH/bin:$PATH"
+
+          # 4. XLA Specific configuration
           export HERMETIC_PYTHON_VERSION=3.11
 
           cd xla
-          printf "\nConfiguring XLA build:\n"
-          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
+          printf "\nConfiguring XLA build with LLVM 20:\n"
+          python3 ./configure.py \
+            --backend CPU \
+            --os LINUX \
+            --host_compiler CLANG \
+            --clang_path "$CC"
 
+          # 5. Execute Build
+          # Use --config=llvm if the XLA version supports it,
+          # otherwise the environment variables above will guide the default toolchain.
           printf "\nStarting XLA bazel build:\n"
-          bazel build -c opt //xla/service/cpu:runtime_matmul
-          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+          bazel build -c opt //xla/service/cpu:runtime_matmul \
+            --action_env=CC="$CC" \
+            --action_env=CXX="$CXX" \
+            --linkopt="-fuse-ld=lld"
+          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin \
+            --action_env=CC="$CC" \
+            --action_env=CXX="$CXX" \
+            --linkopt="-fuse-ld=lld"
 
-      - name: "Package the binary"
+      - name: "Verify glibc requirements"
+        run: objdump -p bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
+
+      - name: "Package the binary (tar)"
         run: |
           # Create the tarball.
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
+          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
 
-          # 1. Extract the Major and Minor version numbers from the header file.
-          # The 'awk' command assumes the version number is the third word on the line,
-          # e.g., '#define PJRT_API_MINOR 83'
-          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          # Check if the extraction was successful (optional but recommended)
-          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
-              echo "Error: Could not extract PJRT API version from ${PJRT_C_API_HEADER}. Aborting." >&2
-              exit 1
-          fi
-
-          # 2. Construct the full version string and the new filename.
-          PJRT_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}"
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${PJRT_VERSION}_plugin.so"
+          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE}_plugin.so"
           echo "Extracted PJRT Version: ${PJRT_VERSION}"
           echo "New Binary Name: ${NEW_BINARY_NAME}"
           mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}"
@@ -109,14 +122,19 @@ jobs:
           # so that NEW_BINARY_NAME is added to the archive at its root.
           tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME}
           echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+          echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
 
-      - name: "Upload plugin artifact"
-        # This action uploads the generated file as a workflow artifact
-        uses: actions/upload-artifact@v4
+          # Same binary for Amazon Linxu 2023
+          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
+          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
         with:
-          # This is the name of the artifact bundle in the GitHub UI
-          name: pjrt_cpu_linux_amd64
-          # This is the file to upload
-          path: pjrt_cpu_linux_amd64.tar.gz
-          # Set a reasonable retention period for the artifact
-          retention-days: 3
+          name: ${{ env.TARBALL_NAME }}
+          tag_name: ${{ env.RELEASE_VERSION }}
+          files: |
+            ${{ env.TARBALL_NAME }}
+            ${{ env.TARBALL_NAME_AMAZONLINUX }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
