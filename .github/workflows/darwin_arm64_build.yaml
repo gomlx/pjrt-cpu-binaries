@@ -11,6 +11,8 @@ jobs:
 
     # We use macos-14, which is the GitHub-hosted runner for Apple Silicon (arm64)
     runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4

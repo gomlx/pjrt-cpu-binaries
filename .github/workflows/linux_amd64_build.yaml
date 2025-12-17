@@ -8,12 +8,13 @@ on:
 jobs:
   build-and-package-linux-amd64:
     name: "Build linux/amd64 plugin"
-
     # We use ubuntu-22.04 for compatible with most clound Linuxes around.
     # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
     # and since glibc is backwards compatible, it should have no issues running on newer
     # systems.
     runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4

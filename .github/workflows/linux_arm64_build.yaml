@@ -8,9 +8,9 @@ on:
 jobs:
   build-and-package-linux-arm64:
     name: "Build Linux (arm64) Plugin"
-
-    # GitHub-hosted ARM64 runner
     runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
