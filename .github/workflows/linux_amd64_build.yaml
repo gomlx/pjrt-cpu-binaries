@@ -97,7 +97,7 @@ jobs:
             --action_env=CC="$CC" \
             --action_env=CXX="$CXX" \
             --linkopt="-fuse-ld=lld"
-          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin \
+          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so \
             --action_env=CC="$CC" \
             --action_env=CXX="$CXX" \
             --linkopt="-fuse-ld=lld"
