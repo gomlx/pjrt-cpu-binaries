@@ -5,6 +5,9 @@ name: "Build linux/arm64 XLA PJRT CPU Plugin"
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-package-linux-arm64:
     name: "Build Linux (arm64) Plugin"

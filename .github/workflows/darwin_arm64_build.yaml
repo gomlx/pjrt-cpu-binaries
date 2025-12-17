@@ -5,6 +5,9 @@ name: "Build darwin/arm64 XLA PJRT CPU Plugin"
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-package-macos-arm64:
     name: "Build darwin/arm64 (macOS) Plugin"
@@ -85,6 +88,7 @@ jobs:
           TARBALL_NAME="pjrt_cpu_darwin_arm64.tar.gz"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
 
           # Create tarball
           mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
