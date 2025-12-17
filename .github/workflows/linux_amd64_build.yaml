@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-package-linux-amd64:
-    name: "Build Linux (amd64) Plugin"
+    name: "Build linux/amd64 plugin"
 
     # We use ubuntu-22.04 for compatible with most clound Linuxes around.
     # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
@@ -103,30 +103,24 @@ jobs:
             --linkopt="-fuse-ld=lld"
 
       - name: "Verify glibc requirements"
-        run: objdump -p bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
+        run: objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
 
       - name: "Package the binary (tar)"
         run: |
-          # Create the tarball.
-          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+          # Paths and names
           TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
           TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
-          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
 
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE}_plugin.so"
-          echo "Extracted PJRT Version: ${PJRT_VERSION}"
-          echo "New Binary Name: ${NEW_BINARY_NAME}"
-          mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}"
-
-          # The -C flag tells tar to change to BINARY_DIR first,
-          # so that NEW_BINARY_NAME is added to the archive at its root.
-          tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME}
+          # Create tarball
+          mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
+          tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
           echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
           echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
 
-          # Same binary for Amazon Linxu 2023
+          # Same binary for AmazonLinux 2023
           ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
           echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
 
