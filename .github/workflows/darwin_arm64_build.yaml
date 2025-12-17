@@ -15,14 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Set up Python 3.11"
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          # Optional: cache pip dependencies to speed up subsequent runs
-          cache: "pip"
-          cache-dependency-path: "xla/requirements_lock_3_11.txt"
-
       - name: "Clone and checkout XLA"
         run: |
           git clone https://github.com/openxla/xla xla
@@ -32,6 +24,14 @@ jobs:
           echo "Checking out XLA at commit: $XLA_HASH"
           git checkout $XLA_HASH
           echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
+      - name: "Set up Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          # Optional: cache pip dependencies to speed up subsequent runs
+          cache: "pip"
+          cache-dependency-path: "xla/requirements_lock_3_11.txt"
 
       - name: "Install Python dependencies"
         run: |
@@ -58,7 +58,6 @@ jobs:
 
       - name: "Build PJRT C API CPU plugin"
         run: |
-          source venv/bin/activate
           # Point Bazel to the Homebrew-installed LLVM/Clang
           # This is the standard path for Homebrew on Apple Silicon runners
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
