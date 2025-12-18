@@ -91,6 +91,8 @@ jobs:
           bazel build -c opt \
             --action_env=CC="$CC" \
             --action_env=CXX="$CXX" \
+            --action_env=ZIG_EXE="$ZIG_EXE" \
+            --action_env=ZIG_CACHE="$ZIG_CACHE" \
             --host_action_env=CC="$CC" \
             --host_action_env=CXX="$CXX" \
             --linkopt="-fuse-ld=lld" \
