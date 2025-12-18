@@ -54,7 +54,7 @@ jobs:
           # 1. Setup Zig related env variables.
           export TOOLCHAIN_PATH="$(pwd)/internal/zig-bin"
           echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
-          chmod +x "${TOOLCHAIN_PATH}"/clang "${TOOLCHAIN_PATH}"/clang++"
+          chmod +x "${TOOLCHAIN_PATH}/clang" "${TOOLCHAIN_PATH}/clang++"
 
           ZIG_CACHE="$(pwd)/.zig-cache"
           mkdir -p "${ZIG_CACHE}"
