@@ -52,7 +52,7 @@ jobs:
       - name: "Setup Zip as C++ tools"
         run: |
           # 1. Create a fake LLVM bin directory
-          TOOLCHAIN_PATH=""${TOOLCHAIN_PATH}""
+          export TOOLCHAIN_PATH="$(pwd)/zig-bin"
           echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
           mkdir -p "${TOOLCHAIN_PATH}"
           ZIG_EXE=$(which zig)
