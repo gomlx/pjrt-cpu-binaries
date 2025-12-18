@@ -22,9 +22,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Install Zig"
-        uses: mlugg/setup-zig@v1
+        uses: https://codeberg.org/mlugg/setup-zig@v2
         with:
-          version: 0.13.0 # Stable version with excellent C++ support
+          version: "latest" # Latest full release.
 
       - name: "Clone and checkout XLA"
         run: |
@@ -54,28 +54,51 @@ jobs:
 
       - name: "Build PJRT C API CPU plugin"
         run: |
-          # Create wrapper scripts to inject the Zig target
-          # Target: x86_64-linux-gnu.2.34 (Matches Amazon Linux 2023)
-          echo '#!/bin/bash' > zig_cc.sh
-          echo 'zig cc -target x86_64-linux-gnu.2.34 "$@"' >> zig_cc.sh
-          echo '#!/bin/bash' > zig_cxx.sh
-          echo 'zig c++ -target x86_64-linux-gnu.2.34 "$@"' >> zig_cxx.sh
-          chmod +x zig_cc.sh zig_cxx.sh
+          # 1. Create a fake LLVM bin directory
+          mkdir -p $(pwd)/zig-bin
+          ZIG_EXE=$(which zig)
 
-          export CC="$(pwd)/zig_cc.sh"
-          export CXX="$(pwd)/zig_cxx.sh"
+          # 2. Create wrapper for CC and CXX with the target embedded
+          # We use absolute paths because Bazel is sensitive to execution root
+          echo "#!/bin/bash" > $(pwd)/zig-bin/clang
+          echo "$ZIG_EXE cc -target x86_64-linux-gnu.2.34 \"\$@\"" >> $(pwd)/zig-bin/clang
+
+          echo "#!/bin/bash" > $(pwd)/zig-bin/clang++
+          echo "$ZIG_EXE c++ -target x86_64-linux-gnu.2.34 \"\$@\"" >> $(pwd)/zig-bin/clang++
+
+          chmod +x $(pwd)/zig-bin/clang $(pwd)/zig-bin/clang++
+
+          # 3. Symlink other required tools directly to zig
+          # Zig handles these calls automatically based on the symlink name
+          ln -s $ZIG_EXE $(pwd)/zig-bin/ld.lld
+          ln -s $ZIG_EXE $(pwd)/zig-bin/llvm-ar
+          ln -s $ZIG_EXE $(pwd)/zig-bin/llvm-nm
+          ln -s $ZIG_EXE $(pwd)/zig-bin/llvm-objcopy
+          ln -s $ZIG_EXE $(pwd)/zig-bin/llvm-objdump
+          ln -s $ZIG_EXE $(pwd)/zig-bin/llvm-strip
+
+          # 4. Set Environment
+          export TOOLCHAIN_PATH="$(pwd)/zig-bin"
+          export CC="$TOOLCHAIN_PATH/clang"
+          export CXX="$TOOLCHAIN_PATH/clang++"
+          export PATH="$TOOLCHAIN_PATH:$PATH"
 
           cd xla
+          # Pass the fake clang path; Bazel will look in its folder for ld.lld, etc.
           python3 ./configure.py \
             --backend CPU \
             --os LINUX \
             --host_compiler CLANG \
             --clang_path "$CC"
 
-          # Use Bazel with Zig as the toolchain
+          # 5. Build
+          # We force Bazel to use our wrappers for everything
           bazel build -c opt \
             --action_env=CC="$CC" \
             --action_env=CXX="$CXX" \
+            --host_action_env=CC="$CC" \
+            --host_action_env=CXX="$CXX" \
+            --linkopt="-fuse-ld=lld" \
             --local_ram_resources=HOST_RAM*.7 \
             --local_cpu_resources=HOST_CPUS-1 \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
