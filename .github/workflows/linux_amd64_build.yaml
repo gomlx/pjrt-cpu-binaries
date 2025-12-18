@@ -70,7 +70,8 @@ jobs:
         # specified by the .bazelversion file in the XLA repo.
         uses: bazelbuild/setup-bazelisk@v3
 
-      - run: |
+      - name: "Build Version"
+        run: |
           # Extract version numbers
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
