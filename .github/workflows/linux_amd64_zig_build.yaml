@@ -1,0 +1,116 @@
+name: "linux/amd64 (Zig-Targeted)"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-package-linux-amd64:
+    name: "Build PJRT (Zig Target glibc 2.34)"
+    runs-on: ubuntu-latest # Fastest runner, no queue issues
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: "Free disk space"
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h
+
+      - uses: actions/checkout@v4
+
+      - name: "Install Zig"
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0 # Stable version with excellent C++ support
+
+      - name: "Clone and checkout XLA"
+        run: |
+          git clone https://github.com/openxla/xla xla
+          cd xla
+          XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
+          git checkout $XLA_HASH
+          echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
+      - name: "Set up Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "xla/requirements_lock_3_11.txt"
+
+      - name: "Install Python dependencies"
+        run: |
+          pip install --upgrade pip
+          pip install six numpy
+
+      - name: "Setup Bazelisk"
+        uses: bazelbuild/setup-bazelisk@v3
+
+      # Note: We skip the system LLVM 20 install because we are using Zig's toolchain
+      # which is built on LLVM.
+
+      - name: "Build PJRT C API CPU plugin"
+        run: |
+          # Create wrapper scripts to inject the Zig target
+          # Target: x86_64-linux-gnu.2.34 (Matches Amazon Linux 2023)
+          echo '#!/bin/bash' > zig_cc.sh
+          echo 'zig cc -target x86_64-linux-gnu.2.34 "$@"' >> zig_cc.sh
+          echo '#!/bin/bash' > zig_cxx.sh
+          echo 'zig c++ -target x86_64-linux-gnu.2.34 "$@"' >> zig_cxx.sh
+          chmod +x zig_cc.sh zig_cxx.sh
+
+          export CC="$(pwd)/zig_cc.sh"
+          export CXX="$(pwd)/zig_cxx.sh"
+
+          cd xla
+          python3 ./configure.py \
+            --backend CPU \
+            --os LINUX \
+            --host_compiler CLANG \
+            --clang_path "$CC"
+
+          # Use Bazel with Zig as the toolchain
+          bazel build -c opt \
+            --action_env=CC="$CC" \
+            --action_env=CXX="$CXX" \
+            --local_ram_resources=HOST_RAM*.7 \
+            --local_cpu_resources=HOST_CPUS-1 \
+            //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+
+      - name: "Verify glibc requirements"
+        run: |
+          # This should now show 2.34 or LOWER
+          objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
+
+      - name: "Package the binary (tar)"
+        run: |
+          # Paths and names
+          TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
+          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
+          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
+
+          # Create tarball
+          mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
+          tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
+          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+          echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
+
+          # Same binary for AmazonLinux 2023
+          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
+          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          # tag_name: ${{ env.RELEASE_VERSION }}
+          tag_name: v0.83.4-rc0
+          files: |
+            ${{ env.TARBALL_NAME }}
+            ${{ env.TARBALL_NAME_AMAZONLINUX }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
