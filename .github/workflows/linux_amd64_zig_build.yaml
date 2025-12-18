@@ -51,22 +51,17 @@ jobs:
 
       - name: "Setup Zip as C++ tools"
         run: |
-          # 1. Create a fake LLVM bin directory
-          export TOOLCHAIN_PATH="$(pwd)/zig-bin"
+          # 1. Setup Zig related env variables.
+          export TOOLCHAIN_PATH="$(pwd)/internal/zig-bin"
           echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
-          mkdir -p "${TOOLCHAIN_PATH}"
+          chmod +x "${TOOLCHAIN_PATH}"/clang "${TOOLCHAIN_PATH}"/clang++"
+
+          ZIG_CACHE="$(pwd)/.zig-cache"
+          mkdir -p "${ZIG_CACHE}"
+          echo "ZIG_CACHE=$ZIG_CACHE" >> $GITHUB_ENV
+
           ZIG_EXE=$(which zig)
-
-          # 2. Create wrapper for CC and CXX with the target embedded
-          # Use '-x c' and '-x c++' to force Zig to handle stdin (-) correctly
-          # We also add -Wno-unused-command-line-argument to keep the output clean
-          echo "#!/bin/bash" > $(pwd)/zig-bin/clang
-          echo "$ZIG_EXE cc -target x86_64-linux-gnu.2.34 -x c -Wno-unused-command-line-argument \"\$@\"" >> $(pwd)/zig-bin/clang
-
-          echo "#!/bin/bash" > $(pwd)/zig-bin/clang++
-          echo "$ZIG_EXE c++ -target x86_64-linux-gnu.2.34 -x c++ -Wno-unused-command-line-argument \"\$@\"" >> $(pwd)/zig-bin/clang++
-
-          chmod +x "${TOOLCHAIN_PATH}"/clang "${TOOLCHAIN_PATH}"/clang++
+          echo "ZIG_EXE=$ZIG_EXE" >> $GITHUB_ENV
 
           # 3. Symlink other required tools directly to zig
           # Zig handles these calls automatically based on the symlink name
