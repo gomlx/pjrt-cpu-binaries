@@ -58,12 +58,13 @@ jobs:
           ZIG_EXE=$(which zig)
 
           # 2. Create wrapper for CC and CXX with the target embedded
-          # We use absolute paths because Bazel is sensitive to execution root
-          echo "#!/bin/bash" > "${TOOLCHAIN_PATH}"/clang
-          echo "$ZIG_EXE cc -target x86_64-linux-gnu.2.34 \"\$@\"" >> "${TOOLCHAIN_PATH}"/clang
+          # Use '-x c' and '-x c++' to force Zig to handle stdin (-) correctly
+          # We also add -Wno-unused-command-line-argument to keep the output clean
+          echo "#!/bin/bash" > $(pwd)/zig-bin/clang
+          echo "$ZIG_EXE cc -target x86_64-linux-gnu.2.34 -x c -Wno-unused-command-line-argument \"\$@\"" >> $(pwd)/zig-bin/clang
 
-          echo "#!/bin/bash" > "${TOOLCHAIN_PATH}"/clang++
-          echo "$ZIG_EXE c++ -target x86_64-linux-gnu.2.34 \"\$@\"" >> "${TOOLCHAIN_PATH}"/clang++
+          echo "#!/bin/bash" > $(pwd)/zig-bin/clang++
+          echo "$ZIG_EXE c++ -target x86_64-linux-gnu.2.34 -x c++ -Wno-unused-command-line-argument \"\$@\"" >> $(pwd)/zig-bin/clang++
 
           chmod +x "${TOOLCHAIN_PATH}"/clang "${TOOLCHAIN_PATH}"/clang++
 
