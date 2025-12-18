@@ -1,8 +1,7 @@
 # Based on version from @dfalbel in https://github.com/r-xla/pjrt-builds
+name: "windows/amd64"
 on:
   workflow_dispatch:
-
-name: "Build Windows (amd64) Plugin"
 
 permissions:
   contents: write

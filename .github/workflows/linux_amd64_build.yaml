@@ -1,4 +1,4 @@
-name: "Build linux/amd64 XLA PJRT CPU Plugin"
+name: "linux/amd64"
 
 # This allows the workflow to be triggered manually from the
 # GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
@@ -11,12 +11,11 @@ permissions:
 jobs:
   build-and-package-linux-amd64:
     name: "Build linux/amd64 plugin"
-    # We use ubuntu-20.04 for compatible with most clound Linuxes around.
-    # It uses glib 2.31 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
+    # We use ubuntu-22.04 for compatible with most clound Linuxes around.
+    # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
     # and since glibc is backwards compatible, it should have no issues running on newer
     # systems.
-    runs-on: ubuntu-20.04 # Uses glibc 2.31, which is Amazon Linux 2023 compatible
-    # runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
+    runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -138,8 +137,7 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          # tag_name: ${{ env.RELEASE_VERSION }}
-          tag_name: v0.83.4-rc0
+          tag_name: ${{ env.RELEASE_VERSION }}
           files: |
             ${{ env.TARBALL_NAME }}
             ${{ env.TARBALL_NAME_AMAZONLINUX }}

@@ -1,4 +1,4 @@
-name: "Build linux/arm64 XLA PJRT CPU Plugin"
+name: "linux/arm64"
 
 # This allows the workflow to be triggered manually from the
 # GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
