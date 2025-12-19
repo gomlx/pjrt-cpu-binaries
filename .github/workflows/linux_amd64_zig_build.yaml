@@ -1,181 +1,180 @@
 name: "linux/amd64 (Zig-CC)"
 
 on:
-  workflow_dispatch:
+    workflow_dispatch:
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  build-and-package-linux-amd64:
-    name: "Build PJRT"
-    runs-on: ubuntu-latest # Fastest runner, no queue issues
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      # - name: "Free disk space"
-      #   run: |
-      #     sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-      #     df -h
-
-      - uses: actions/checkout@v4
-
-      - name: "Install Zig"
-        uses: mlugg/setup-zig@v2
-        with:
-          version: "latest" # Latest full release.
-
-      - name: "Setup Zip as C++ tools"
-        run: |
-          # 1. Setup Zig related env variables.
-          export TOOLCHAIN_PATH="$(pwd)/internal/zig-bin"
-          echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
-
-          export ZIG_CACHE="$(pwd)/.zig-cache"
-          export ZIG_LOCAL_CACHE_DIR="$ZIG_CACHE"
-          export ZIG_GLOBAL_CACHE_DIR="$ZIG_CACHE"
-          echo "ZIG_CACHE=$ZIG_CACHE" >> $GITHUB_ENV
-          echo "ZIG_LOCAL_CACHE_DIR=$ZIG_LOCAL_CACHE_DIR" >> $GITHUB_ENV
-          echo "ZIG_GLOBAL_CACHE_DIR=$ZIG_GLOBAL_CACHE_DIR" >> $GITHUB_ENV
-
-          ZIG_EXE=$(which zig)
-          echo "ZIG_EXE=$ZIG_EXE" >> $GITHUB_ENV
-
-          # Capture Zig's internal paths for Bazel
-          ZIG_LIB_DIR=$($ZIG_EXE env | grep '\.lib_dir =' | cut -d '"' -f 2)
-          echo "ZIG_LIB_DIR=$ZIG_LIB_DIR" >> $GITHUB_ENV
-          echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
-
-          # 3. Copy / symlink the required tools directly to zig
-          cp ${TOOLCHAIN_PATH}/compiler-wrapper.sh "${TOOLCHAIN_PATH}/clang"
-          cp ${TOOLCHAIN_PATH}/compiler-wrapper.sh "${TOOLCHAIN_PATH}/clang++"
-          chmod +x "${TOOLCHAIN_PATH}/clang" "${TOOLCHAIN_PATH}/clang++"
-          for tool in ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
-            ln -s "$ZIG_EXE" "${TOOLCHAIN_PATH}/$tool"
-          done
-
-      - name: "Verify Zig-C++ Toolchain"
-        run: |
-          echo "clang (zig-based) version: [$(echo "__clang_major__" | ${TOOLCHAIN_PATH}/clang -E -P -)]"
-          echo "Zig environment:"
-          zig env
-          echo "-----------------------------------"
-
-          # Create and compile a dummy C++ file
-          export CC="$TOOLCHAIN_PATH/clang"
-          export CXX="$TOOLCHAIN_PATH/clang++"
-          printf "#include <cstdint>\n#include <vector>\nint main() { std::vector<uint32_t> v; return 0; }\n" > test.cpp
-          echo "Testing C++ header availability..."
-          $CXX -c test.cpp -o test.o
-          if [ $? -eq 0 ]; then
-            echo "✅ Zig C++ headers found successfully!"
-          else
-            echo "❌ Zig C++ headers NOT found. Check wrapper logic."
-            exit 1
-          fi
-
-      - name: "Clone and checkout XLA"
-        run: |
-          git clone https://github.com/openxla/xla xla
-          cd xla
-          XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
-          git checkout $XLA_HASH
-          echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
-
-      - name: "Set up Python 3.11"
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "xla/requirements_lock_3_11.txt"
-
-      - name: "Install Python dependencies"
-        run: |
-          pip install --upgrade pip
-          pip install six numpy
-
-      - name: "Setup Bazelisk"
-        uses: bazelbuild/setup-bazelisk@v3
-
-      - name: "Build Version"
-        run: |
-          # Extract version numbers
-          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
-          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
-          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
-          echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
-
-      - name: "Build PJRT C API CPU plugin"
-        run: |
-          export CC="$TOOLCHAIN_PATH/clang"
-          export CXX="$TOOLCHAIN_PATH/clang++"
-          export PATH="$TOOLCHAIN_PATH:$PATH"
-
-          cd xla
-          # Pass the fake clang path; Bazel will look in its folder for ld.lld, etc.
-          python3 ./configure.py \
-            --backend CPU \
-            --os LINUX \
-            --host_compiler CLANG \
-            --clang_path "$CC"
-
-          ZIG_INCLUDE_PATH="${ZIG_LIB_DIR}/libcxx/include:${ZIG_LIB_DIR}/libc/include"
-          echo "ZIG_INCLUDE_PATH=$ZIG_INCLUDE_PATH"
-          echo
-
-          bazel build -c opt \
-            --action_env=CC="$CC" \
-            --host_action_env=CC="$CC" \
-            --action_env=CXX="$CXX" \
-            --host_action_env=CXX="$CXX" \
-            --action_env=ZIG_EXE="$ZIG_EXE" \
-            --host_action_env=ZIG_EXE="$ZIG_EXE" \
-            --sandbox_writable_path="$ZIG_CACHE" \
-            --action_env=ZIG_CACHE="$ZIG_CACHE" \
-            --host_action_env=ZIG_CACHE="$ZIG_CACHE" \
-            --action_env=ZIG_LOCAL_CACHE_DIR="$ZIG_LOCAL_CACHE_DIR" \
-            --host_action_env=ZIG_LOCAL_CACHE_DIR="$ZIG_LOCAL_CACHE_DIR" \
-            --action_env=ZIG_GLOBAL_CACHE_DIR="$ZIG_GLOBAL_CACHE_DIR" \
-            --host_action_env=ZIG_GLOBAL_CACHE_DIR="$ZIG_GLOBAL_CACHE_DIR" \
-            --cxxopt="-stdlib=libc++" \
-            --linkopt="-fuse-ld=lld" \
-            --copt="-mavx512f" --copt="-mevex512" \
-            //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
-
-      - name: "Verify glibc requirements"
-        run: |
-          # This should now show 2.34 or LOWER
-          objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
-
-      - name: "Package the binary (tar)"
-        run: |
-          # Paths and names
-          TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
-          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
-          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
-          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
-
-          # Create tarball
-          mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
-          tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
-          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
-          echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
-
-          # Same binary for AmazonLinux 2023
-          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
-          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
-
-      - name: Upload release asset
-        uses: softprops/action-gh-release@v2
-        with:
-          # tag_name: ${{ env.RELEASE_VERSION }}
-          tag_name: v0.83.4-rc0
-          files: |
-            ${{ env.TARBALL_NAME }}
-            ${{ env.TARBALL_NAME_AMAZONLINUX }}
+    build:
+        name: "Build PJRT"
+        runs-on: ubuntu-latest # Fastest runner, no queue issues
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: "Install Zig"
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: "latest" # Latest full release.
+
+            - name: "Setup Zip as C++ tools"
+              run: |
+                  # 1. Setup Zig related env variables.
+                  export TOOLCHAIN_PATH="$(pwd)/internal/zig-bin"
+                  echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
+
+                  export ZIG_CACHE="$(pwd)/.zig-cache"
+                  export ZIG_LOCAL_CACHE_DIR="$ZIG_CACHE"
+                  export ZIG_GLOBAL_CACHE_DIR="$ZIG_CACHE"
+                  echo "ZIG_CACHE=$ZIG_CACHE" >> $GITHUB_ENV
+                  echo "ZIG_LOCAL_CACHE_DIR=$ZIG_LOCAL_CACHE_DIR" >> $GITHUB_ENV
+                  echo "ZIG_GLOBAL_CACHE_DIR=$ZIG_GLOBAL_CACHE_DIR" >> $GITHUB_ENV
+
+                  ZIG_EXE=$(which zig)
+                  echo "ZIG_EXE=$ZIG_EXE" >> $GITHUB_ENV
+
+                  # Capture Zig's internal paths for Bazel
+                  ZIG_LIB_DIR=$($ZIG_EXE env | grep '\.lib_dir =' | cut -d '"' -f 2)
+                  echo "ZIG_LIB_DIR=$ZIG_LIB_DIR" >> $GITHUB_ENV
+                  echo "TOOLCHAIN_PATH=$TOOLCHAIN_PATH" >> $GITHUB_ENV
+
+                  # 3. Copy / symlink the required tools directly to zig
+                  cp ${TOOLCHAIN_PATH}/compiler-wrapper.sh "${TOOLCHAIN_PATH}/clang"
+                  cp ${TOOLCHAIN_PATH}/compiler-wrapper.sh "${TOOLCHAIN_PATH}/clang++"
+                  chmod +x "${TOOLCHAIN_PATH}/clang" "${TOOLCHAIN_PATH}/clang++"
+                  for tool in ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
+                    ln -s "$ZIG_EXE" "${TOOLCHAIN_PATH}/$tool"
+                  done
+
+            - name: "Verify Zig-C++ Toolchain"
+              run: |
+                  echo "clang (zig-based) version: [$(echo "__clang_major__" | ${TOOLCHAIN_PATH}/clang -E -P -)]"
+                  echo "Zig environment:"
+                  zig env
+                  echo "-----------------------------------"
+
+                  # Create and compile a dummy C++ file
+                  export CC="$TOOLCHAIN_PATH/clang"
+                  export CXX="$TOOLCHAIN_PATH/clang++"
+                  printf "#include <cstdint>\n#include <vector>\nint main() { std::vector<uint32_t> v; return 0; }\n" > test.cpp
+                  echo "Testing C++ header availability..."
+                  $CXX -c test.cpp -o test.o
+                  if [ $? -eq 0 ]; then
+                    echo "✅ Zig C++ headers found successfully!"
+                  else
+                    echo "❌ Zig C++ headers NOT found. Check wrapper logic."
+                    exit 1
+                  fi
+
+            - name: "Clone and checkout XLA"
+              run: |
+                  git clone https://github.com/openxla/xla xla
+                  cd xla
+                  XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
+                  git checkout $XLA_HASH
+                  echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
+            - name: "Set up Python 3.11"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+                  cache: "pip"
+                  cache-dependency-path: "xla/requirements_lock_3_11.txt"
+
+            - name: "Install Python dependencies"
+              run: |
+                  pip install --upgrade pip
+                  pip install six numpy
+
+            - name: "Setup Bazelisk"
+              uses: bazelbuild/setup-bazelisk@v3
+
+            - name: "Build Version"
+              run: |
+                  # Extract version numbers
+                  BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+                  PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+                  MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+                  echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
+
+            - name: "Build PJRT C API CPU plugin"
+              run: |
+                  export CC="$TOOLCHAIN_PATH/clang"
+                  export CXX="$TOOLCHAIN_PATH/clang++"
+                  export PATH="$TOOLCHAIN_PATH:$PATH"
+
+                  cd xla
+                  # Pass the fake clang path; Bazel will look in its folder for ld.lld, etc.
+                  python3 ./configure.py \
+                    --backend CPU \
+                    --os LINUX \
+                    --host_compiler CLANG \
+                    --clang_path "$CC"
+
+                  ZIG_INCLUDE_PATH="${ZIG_LIB_DIR}/libcxx/include:${ZIG_LIB_DIR}/libc/include"
+                  echo "ZIG_INCLUDE_PATH=$ZIG_INCLUDE_PATH"
+                  echo
+
+                  bazel build -c opt \
+                    --action_env=CC="$CC" \
+                    --host_action_env=CC="$CC" \
+                    --action_env=CXX="$CXX" \
+                    --host_action_env=CXX="$CXX" \
+                    --action_env=ZIG_EXE="$ZIG_EXE" \
+                    --host_action_env=ZIG_EXE="$ZIG_EXE" \
+                    --sandbox_writable_path="$ZIG_CACHE" \
+                    --action_env=ZIG_CACHE="$ZIG_CACHE" \
+                    --host_action_env=ZIG_CACHE="$ZIG_CACHE" \
+                    --action_env=ZIG_LOCAL_CACHE_DIR="$ZIG_LOCAL_CACHE_DIR" \
+                    --host_action_env=ZIG_LOCAL_CACHE_DIR="$ZIG_LOCAL_CACHE_DIR" \
+                    --action_env=ZIG_GLOBAL_CACHE_DIR="$ZIG_GLOBAL_CACHE_DIR" \
+                    --host_action_env=ZIG_GLOBAL_CACHE_DIR="$ZIG_GLOBAL_CACHE_DIR" \
+                    --cxxopt="-pthread" \
+                    --cxxopt="-D_REENTRANT" \
+                    --copt="-pthread" \
+                    --linkopt="-pthread" \
+                    --cxxopt="-stdlib=libc++" \
+                    --linkopt="-fuse-ld=lld" \
+                    --copt="-mavx512f" --copt="-mevex512" \
+                    //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+
+            - name: "Verify glibc requirements"
+              run: |
+                  # This should now show 2.34 or LOWER
+                  objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
+
+            - name: "Package the binary (tar)"
+              run: |
+                  # Paths and names
+                  TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
+                  TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
+                  BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+                  BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+                  NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
+
+                  # Create tarball
+                  mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
+                  tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
+                  echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+                  echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
+
+                  # Same binary for AmazonLinux 2023
+                  ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
+                  echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
+
+            - name: Upload release asset
+              uses: softprops/action-gh-release@v2
+              with:
+                  # tag_name: ${{ env.RELEASE_VERSION }}
+                  tag_name: v0.83.4-rc0
+                  files: |
+                      ${{ env.TARBALL_NAME }}
+                      ${{ env.TARBALL_NAME_AMAZONLINUX }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
