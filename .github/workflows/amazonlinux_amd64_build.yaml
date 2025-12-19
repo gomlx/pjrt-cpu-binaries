@@ -22,6 +22,9 @@ jobs:
                     curl xz ninja-build
                   pip3 install six numpy
 
+            - name: "Checkout current repository"
+              uses: actions/checkout@v4
+
             - name: "Clone and checkout XLA"
               run: |
                   git clone https://github.com/openxla/xla xla
@@ -31,9 +34,6 @@ jobs:
                   echo "Checking out XLA at commit: $XLA_HASH"
                   git checkout $XLA_HASH
                   echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
-
-            - name: "Checkout current repository"
-              uses: actions/checkout@v4
 
             - name: "Setup Bazelisk (for Bazel)"
               uses: bazelbuild/setup-bazelisk@v3
