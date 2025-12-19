@@ -19,7 +19,7 @@ jobs:
           dnf install -y --allowerasing \
             git tar make gcc-c++ \
             python3 python3-pip python3-devel \
-            curl xz ninja-build
+            curl xz ninja-build procps-ng
           pip3 install six numpy
 
       - name: "Checkout current repository"
@@ -87,7 +87,13 @@ jobs:
           NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
           mv ${BINARY_DIR}/${BINARY_NAME} ${NEW_BINARY_NAME}
           cd xla
-          bazel clean --expunge --async
+          # Hard clean up bazel:
+          pkill -9 bazel || true
+          BAZEL_OUTPUT_BASE=$(bazel info output_base)
+          BAZEL_REPO_CACHE=$(bazel info repository_cache)
+          bazel shutdown || true
+          rm -rf "$BAZEL_OUTPUT_BASE"
+          rm -rf "$BAZEL_REPO_CACHE"
           cd ..
           rm -rf xla/
 
