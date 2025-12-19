@@ -86,6 +86,9 @@ jobs:
                   BINARY_NAME="pjrt_c_api_cpu_plugin.so"
                   NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
                   mv ${BINARY_DIR}/${BINARY_NAME} ${NEW_BINARY_NAME}
+                  cd xla
+                  bazel clean --expunge
+                  cd ..
                   rm -rf xla/
 
             - name: "Package the binary (tar)"
