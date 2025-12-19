@@ -22,6 +22,16 @@ jobs:
                     curl xz ninja-build
                   pip3 install six numpy
 
+            - name: "Clone and checkout XLA"
+              run: |
+                  git clone https://github.com/openxla/xla xla
+                  cd xla
+                  # This is the command to checkout the specific hash from the file
+                  XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
+                  echo "Checking out XLA at commit: $XLA_HASH"
+                  git checkout $XLA_HASH
+                  echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
             - name: "Checkout current repository"
               uses: actions/checkout@v4
 
