@@ -91,10 +91,11 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
     BINARY_NAME="pjrt_c_api_cpu_plugin.so" && \
     NEW_BINARY_NAME="pjrt_c_api_cpu_${PJRT_VERSION}_plugin.so" && \
     BINARY_DIR="xla/bazel-bin/xla/pjrt/c" && \
-    TARBALL_NAME="pjrt_cpu_amazonlinux_amd64.tar.gz" && \
+    TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz" && \
     echo "PJRT Version: ${PJRT_VERSION}" && \
     echo "New Binary Name: ${NEW_BINARY_NAME}" && \
     mv "${BINARY_DIR}/${BINARY_NAME}" "${BINARY_DIR}/${NEW_BINARY_NAME}" && \
+    rm -rf xla/ && \
     tar -czvf ${TARBALL_NAME} -C ${BINARY_DIR} ${NEW_BINARY_NAME} && \
     echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
 
@@ -106,4 +107,4 @@ RUN BUILDER_VERSION="$(cat BUILDER_VERSION.txt)" && \
 CMD ["/bin/bash"]
 
 FROM scratch AS export
-COPY --from=0 /app/pjrt_cpu_amazonlinux_amd64.tar.gz .
+COPY --from=0 /app/pjrt_cpu_linux_amd64.tar.gz .
