@@ -3,144 +3,144 @@ name: "linux/amd64"
 # This allows the workflow to be triggered manually from the
 # GitHub UI (Actions tab > "Build XLA PJRT CPU Plugin" > Run workflow)
 on:
-  workflow_dispatch:
+    workflow_dispatch:
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  build-and-package-linux-amd64:
-    name: "Build linux/amd64 plugin"
-    # We use ubuntu-22.04 for compatible with most clound Linuxes around.
-    # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
-    # and since glibc is backwards compatible, it should have no issues running on newer
-    # systems.
-    runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      - uses: actions/checkout@v4
-      # Check out the pjrt-cpu-binaries repository
-
-      - name: "Ensure modern libstdc++ for LLVM 20"
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          sudo apt-get update
-          sudo apt-get install -y libstdc++6  # Upgrades the system C++ lib
-
-      - name: "Clone and checkout XLA"
-        run: |
-          git clone https://github.com/openxla/xla xla
-          cd xla
-          # This is the command to checkout the specific hash from the file
-          XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
-          echo "Checking out XLA at commit: $XLA_HASH"
-          git checkout $XLA_HASH
-          echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
-
-      - name: "Set up Python 3.11"
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          # Optional: cache pip dependencies to speed up subsequent runs
-          cache: "pip"
-          cache-dependency-path: "xla/requirements_lock_3_11.txt"
-
-      - name: "Install Python dependencies"
-        run: |
-          pip install --upgrade pip
-          pip install six numpy
-
-      - name: "Install LLVM 20"
-        run: |
-          # LLVM 20 is very new, so we use the official LLVM apt repository script
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 20
-          sudo apt-get install -y clang-20 lld-20
-
-          # Create symlinks so Bazel finds 'clang' and 'ld.lld' as version 20
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-20 100
-
-      - name: "Setup Bazelisk (for Bazel)"
-        # This action installs and caches the correct Bazel version
-        # specified by the .bazelversion file in the XLA repo.
-        uses: bazelbuild/setup-bazelisk@v3
-
-      - name: "Build Version"
-        run: |
-          # Extract version numbers
-          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
-          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
-          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
-          echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
-
-      - name: "Build PJRT C API CPU plugin"
-        run: |
-          LLVM_VERSION=20
-          export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
-          export CC="$LLVM_PATH/bin/clang"
-          export CXX="$LLVM_PATH/bin/clang++"
-          export BAZEL_COMPILER=clang
-          export PATH="$LLVM_PATH/bin:$PATH"
-
-          # 4. XLA Specific configuration
-          export HERMETIC_PYTHON_VERSION=3.11
-
-          cd xla
-          printf "\nConfiguring XLA build with LLVM 20:\n"
-          python3 ./configure.py \
-            --backend CPU \
-            --os LINUX \
-            --host_compiler CLANG \
-            --clang_path "$CC"
-
-          # 5. Execute Build
-          # Use --config=llvm if the XLA version supports it,
-          # otherwise the environment variables above will guide the default toolchain.
-          printf "\nStarting XLA bazel build:\n"
-          bazel build -c opt //xla/service/cpu:runtime_matmul \
-            --action_env=CC="$CC" \
-            --action_env=CXX="$CXX" \
-            --linkopt="-fuse-ld=lld"
-          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so \
-            --action_env=CC="$CC" \
-            --action_env=CXX="$CXX" \
-            --linkopt="-fuse-ld=lld"
-
-      - name: "Verify glibc requirements"
-        run: objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
-
-      - name: "Package the binary (tar)"
-        run: |
-          # Paths and names
-          TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
-          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
-          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
-          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
-
-          # Create tarball
-          mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
-          tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
-          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
-          echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
-
-          # Same binary for AmazonLinux 2023
-          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
-          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
-
-      - name: Upload release asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_VERSION }}
-          files: |
-            ${{ env.TARBALL_NAME }}
-            ${{ env.TARBALL_NAME_AMAZONLINUX }}
+    build-and-package:
+        name: "Build linux/amd64 plugin"
+        # We use ubuntu-22.04 for compatible with most clound Linuxes around.
+        # It usees glib 2.35 (with is mostly compatible with 2.34 used by Amazon Linux 2023),
+        # and since glibc is backwards compatible, it should have no issues running on newer
+        # systems.
+        runs-on: ubuntu-22.04 # Best for glibc 2.35 (Amazon Linux 2023 compatibility)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        steps:
+            - uses: actions/checkout@v4
+            # Check out the pjrt-cpu-binaries repository
+
+            - name: "Ensure modern libstdc++ for LLVM 20"
+              run: |
+                  sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+                  sudo apt-get update
+                  sudo apt-get install -y libstdc++6  # Upgrades the system C++ lib
+
+            - name: "Clone and checkout XLA"
+              run: |
+                  git clone https://github.com/openxla/xla xla
+                  cd xla
+                  # This is the command to checkout the specific hash from the file
+                  XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
+                  echo "Checking out XLA at commit: $XLA_HASH"
+                  git checkout $XLA_HASH
+                  echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
+            - name: "Set up Python 3.11"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+                  # Optional: cache pip dependencies to speed up subsequent runs
+                  cache: "pip"
+                  cache-dependency-path: "xla/requirements_lock_3_11.txt"
+
+            - name: "Install Python dependencies"
+              run: |
+                  pip install --upgrade pip
+                  pip install six numpy
+
+            - name: "Install LLVM 20"
+              run: |
+                  # LLVM 20 is very new, so we use the official LLVM apt repository script
+                  wget https://apt.llvm.org/llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 20
+                  sudo apt-get install -y clang-20 lld-20
+
+                  # Create symlinks so Bazel finds 'clang' and 'ld.lld' as version 20
+                  sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+                  sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+                  sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-20 100
+
+            - name: "Setup Bazelisk (for Bazel)"
+              # This action installs and caches the correct Bazel version
+              # specified by the .bazelversion file in the XLA repo.
+              uses: bazelbuild/setup-bazelisk@v3
+
+            - name: "Build Version"
+              run: |
+                  # Extract version numbers
+                  BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+                  PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+                  MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
+                  echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
+
+            - name: "Build PJRT C API CPU plugin"
+              run: |
+                  LLVM_VERSION=20
+                  export LLVM_PATH="/usr/lib/llvm-${LLVM_VERSION}"
+                  export CC="$LLVM_PATH/bin/clang"
+                  export CXX="$LLVM_PATH/bin/clang++"
+                  export BAZEL_COMPILER=clang
+                  export PATH="$LLVM_PATH/bin:$PATH"
+
+                  # 4. XLA Specific configuration
+                  export HERMETIC_PYTHON_VERSION=3.11
+
+                  cd xla
+                  printf "\nConfiguring XLA build with LLVM 20:\n"
+                  python3 ./configure.py \
+                    --backend CPU \
+                    --os LINUX \
+                    --host_compiler CLANG \
+                    --clang_path "$CC"
+
+                  # 5. Execute Build
+                  # Use --config=llvm if the XLA version supports it,
+                  # otherwise the environment variables above will guide the default toolchain.
+                  printf "\nStarting XLA bazel build:\n"
+                  bazel build -c opt //xla/service/cpu:runtime_matmul \
+                    --action_env=CC="$CC" \
+                    --action_env=CXX="$CXX" \
+                    --linkopt="-fuse-ld=lld"
+                  bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so \
+                    --action_env=CC="$CC" \
+                    --action_env=CXX="$CXX" \
+                    --linkopt="-fuse-ld=lld"
+
+            - name: "Verify glibc requirements"
+              run: objdump -p xla/bazel-bin/xla/pjrt/c/pjrt_c_api_cpu_plugin.so | grep GLIBC
+
+            - name: "Package the binary (tar)"
+              run: |
+                  # Paths and names
+                  TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
+                  TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
+                  BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+                  BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+                  NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
+
+                  # Create tarball
+                  mv "${BINARY_DIR}/${BINARY_NAME}" "${NEW_BINARY_NAME}"
+                  tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
+                  echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+                  echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
+
+                  # Same binary for AmazonLinux 2023
+                  ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
+                  echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
+
+            - name: Upload release asset
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ env.RELEASE_VERSION }}
+                  files: |
+                      ${{ env.TARBALL_NAME }}
+                      ${{ env.TARBALL_NAME_AMAZONLINUX }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
