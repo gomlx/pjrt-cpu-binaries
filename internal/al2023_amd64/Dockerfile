@@ -80,12 +80,12 @@ RELEASE_VERSION="v${MAJOR}.${MINOR}.${BUILDER_VERSION}"
 
 echo "Building PJRT CPU plugin ${RELEASE_VERSION}"
 cd xla
-printf "- Configuring XLA build:\n"
+printf "\- Configuring XLA build:\n"
 ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${INSTALL_DIR}/bin/clang"
 printf "\n- Starting XLA bazel build:\n"
 bazel build -c opt //xla/service/cpu:runtime_matmul
 bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
-
+cd ..
 
 BINARY_NAME="pjrt_c_api_cpu_plugin.so"
 NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
