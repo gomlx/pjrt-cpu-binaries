@@ -9,6 +9,11 @@ FLAGS="-Wno-unused-command-line-argument"
 # +avx512bf16, +avx512vnni: DL-specific extensions
 FLAGS="${FLAGS} -mevex512"
 
+# Errors with abort due to invalid ABI? Here is the error log:
+# libc++abi: terminating due to uncaught exception of type std::__1::system_error: recursive_mutex lock failed: Invalid argument
+# SIGABRT: abort
+FLAGS="${FLAGS} -unwindlib=libunwind -rtlib=compiler-rt -stdlib=libstdc++"
+
 # 1. Mode Detection
 if [[ "$(basename "$0")" == *"++"* ]]; then
   CMD="c++"
