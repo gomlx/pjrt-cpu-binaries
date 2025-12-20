@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-package-linux-arm64:
-    name: "Build Linux (arm64) Plugin"
+  build:
+    name: "Build PJRT"
     runs-on: ubuntu-24.04-arm
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

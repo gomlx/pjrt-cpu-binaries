@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-package-macos-arm64:
-    name: "Build darwin/arm64 (macOS) Plugin"
+  build:
+    name: "Build PJRT"
 
     # We use macos-14, which is the GitHub-hosted runner for Apple Silicon (arm64)
     runs-on: macos-latest
