@@ -1,124 +1,140 @@
 # Amazon Linux 2023 build with glibc 2.34
+#
+# This action is limited by disk-space: it failed many times out of disk space.
+# So it attempts to free disk space at every turn, where possible.
 name: "al2023/amd64"
 on:
-  workflow_dispatch:
+    workflow_dispatch:
 permissions:
-  contents: write
+    contents: write
 jobs:
-  build:
-    name: "Build PJRT"
-    runs-on: ubuntu-latest
-    container: amazonlinux:2023
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      - name: "Install tools and Python (tar, git, make, gcc, python3, python3-pip, python3-devel)"
-        run: |
-          dnf update -y
-          dnf install -y --allowerasing \
-            git tar make gcc-c++ \
-            python3 python3-pip python3-devel \
-            curl xz ninja-build procps-ng
-          pip3 install six numpy
-
-      - name: "Checkout current repository"
-        uses: actions/checkout@v4
-
-      - name: "Clone and checkout XLA"
-        run: |
-          git clone https://github.com/openxla/xla xla
-          cd xla
-          # This is the command to checkout the specific hash from the file
-          XLA_HASH=$(cat ../XLA_COMMIT_HASH.txt)
-          echo "Checking out XLA at commit: $XLA_HASH"
-          git checkout $XLA_HASH
-          echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
-
-      - name: "Setup Bazelisk (for Bazel)"
-        uses: bazelbuild/setup-bazelisk@v3
-
-      - name: "Download and Setup LLVM/Clang"
-        run: |
-          LLVM_VERSION="21.1.7" # See https://github.com/llvm/llvm-project/releases
-          ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
-          DOWNLOAD_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${ARCHIVE_NAME}"
-          INSTALL_DIR="/opt/llvm"
-          echo "Downloading LLVM ${LLVM_VERSION} from GitHub releases..."
-          curl -sSL --fail ${DOWNLOAD_URL} -o llvm_temp.tar.xz
-          if [ $? -ne 0 ]; then
-              echo "Error: Failed to download LLVM archive from ${DOWNLOAD_URL}. Check the URL and file name." >&2
-              exit 1
-          fi
-          mkdir -p ${INSTALL_DIR}
-          tar -xJf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
-          rm -f llvm_temp.tar.xz
-          chmod +x ${INSTALL_DIR}/bin/*
-
-      - name: "Version configuration"
-        run: |
-          # Extract version numbers
-          BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
-          PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
-          MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
-          echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
-
-      - name: "Build PJRT"
-        run: |
-          echo "Building PJRT CPU plugin ${RELEASE_VERSION}"
-          export CC="/opt/llvm/bin/clang"
-          export CXX="/opt/llvm/bin/clang++"
-          export LLVM_VERSION=21
-          export HERMETIC_PYTHON_VERSION=3.11
-
-          cd xla
-          printf "\nConfiguring XLA build:\n"
-          ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${CC}"
-
-          printf "\nStarting XLA bazel build:\n"
-          bazel build -c opt //xla/service/cpu:runtime_matmul
-          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
-
-      - name: "Move binary and free space"
-        run: |
-          BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
-          BINARY_NAME="pjrt_c_api_cpu_plugin.so"
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
-          mv ${BINARY_DIR}/${BINARY_NAME} ${NEW_BINARY_NAME}
-          cd xla
-          # Hard clean up bazel:
-          pkill -9 bazel || true
-          BAZEL_OUTPUT_BASE=$(bazel info output_base)
-          BAZEL_REPO_CACHE=$(bazel info repository_cache)
-          bazel shutdown || true
-          rm -rf "$BAZEL_OUTPUT_BASE"
-          rm -rf "$BAZEL_REPO_CACHE"
-          cd ..
-          rm -rf xla/
-
-      - name: "Package the binary (tar)"
-        run: |
-          # Paths and names
-          TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
-          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
-          NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
-
-          # Create tarball
-          tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
-          echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
-          echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
-
-          # Same binary for AmazonLinux 2023
-          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
-          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
-
-      - name: Upload release asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_VERSION }}
-          files: |
-            ${{ env.TARBALL_NAME }}
-            ${{ env.TARBALL_NAME_AMAZONLINUX }}
+    build:
+        name: "Build PJRT"
+        runs-on: ubuntu-latest
+        container:
+            image: amazonlinux:2023
+            # Mount heavy host directories into the container
+            volumes:
+                - /usr/local/lib/android:/host_android
+                - /usr/share/dotnet:/host_dotnet
+                - /opt/ghc:/host_ghc
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        steps:
+            - name: "Free Host Disk Space"
+              run: |
+                  # Deleting these from inside the container removes them from the host disk
+                  rm -rf /host_android/* /host_dotnet/* /host_ghc/*
+
+            - name: "Install tools and Python (tar, git, make, gcc, python3, python3-pip, python3-devel)"
+              run: |
+                  # dnf update -y   --> Commented out to save space.
+                  dnf install -y --allowerasing \
+                    git tar make gcc-c++ \
+                    python3 python3-pip python3-devel \
+                    curl xz ninja-build procps-ng
+                  dnf clean all # Removes the package manager cache to save space
+                  pip3 install six numpy
+
+            - name: "Checkout current repository"
+              uses: actions/checkout@v4
+
+            - name: "Clone and checkout XLA"
+              run: |
+                  XLA_HASH=$(cat XLA_COMMIT_HASH.txt)
+                  mkdir xla && cd xla
+                  git init
+                  git remote add origin https://github.com/openxla/xla
+                  # Fetch only the specific commit needed (to save disk space)
+                  git fetch --depth 1 origin "$XLA_HASH"
+                  git checkout "$XLA_HASH"
+                  echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
+
+            - name: "Setup Bazelisk (for Bazel)"
+              uses: bazelbuild/setup-bazelisk@v3
+
+            - name: "Download and Setup LLVM/Clang"
+              run: |
+                  LLVM_VERSION="21.1.7" # See https://github.com/llvm/llvm-project/releases
+                  ARCHIVE_NAME="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+                  DOWNLOAD_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${ARCHIVE_NAME}"
+                  INSTALL_DIR="/opt/llvm"
+                  echo "Downloading LLVM ${LLVM_VERSION} from GitHub releases..."
+                  curl -sSL --fail ${DOWNLOAD_URL} -o llvm_temp.tar.xz
+                  if [ $? -ne 0 ]; then
+                      echo "Error: Failed to download LLVM archive from ${DOWNLOAD_URL}. Check the URL and file name." >&2
+                      exit 1
+                  fi
+                  mkdir -p ${INSTALL_DIR}
+                  tar -xJf llvm_temp.tar.xz --strip-components=1 -C ${INSTALL_DIR}
+                  rm -f llvm_temp.tar.xz
+                  chmod +x ${INSTALL_DIR}/bin/*
+
+            - name: "Version configuration"
+              run: |
+                  # Extract version numbers
+                  BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
+                  PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
+                  MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  MINOR=$(grep -E '#define PJRT_API_MINOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
+                  echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
+
+            - name: "Build PJRT"
+              run: |
+                  echo "Building PJRT CPU plugin ${RELEASE_VERSION}"
+                  export CC="/opt/llvm/bin/clang"
+                  export CXX="/opt/llvm/bin/clang++"
+                  export LLVM_VERSION=21
+                  export HERMETIC_PYTHON_VERSION=3.11
+
+                  cd xla
+                  printf "\nConfiguring XLA build:\n"
+                  ./configure.py --backend CPU --os LINUX --host_compiler CLANG --clang_path "${CC}"
+
+                  printf "\nStarting XLA bazel build:\n"
+                  bazel build -c opt //xla/service/cpu:runtime_matmul
+                  bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+
+            - name: "Move binary and free space"
+              run: |
+                  BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
+                  BINARY_NAME="pjrt_c_api_cpu_plugin.so"
+                  NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
+                  mv ${BINARY_DIR}/${BINARY_NAME} ${NEW_BINARY_NAME}
+                  cd xla
+                  # Hard clean up bazel:
+                  pkill -9 bazel || true
+                  BAZEL_OUTPUT_BASE=$(bazel info output_base)
+                  BAZEL_REPO_CACHE=$(bazel info repository_cache)
+                  bazel shutdown || true
+                  rm -rf "$BAZEL_OUTPUT_BASE"
+                  rm -rf "$BAZEL_REPO_CACHE"
+                  cd ..
+                  rm -rf xla/
+
+            - name: "Package the binary (tar)"
+              run: |
+                  # Paths and names
+                  TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
+                  TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
+                  NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
+
+                  # Create tarball
+                  tar -czvf ${TARBALL_NAME} ${NEW_BINARY_NAME}
+                  echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
+                  echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
+
+                  # Same binary for AmazonLinux 2023
+                  ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
+                  echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
+
+            - name: Upload release asset
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ env.RELEASE_VERSION }}
+                  files: |
+                      ${{ env.TARBALL_NAME }}
+                      ${{ env.TARBALL_NAME_AMAZONLINUX }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
