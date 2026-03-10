@@ -36,5 +36,5 @@ It is also faster to run locally (if you have a good desktop) than in the GitHub
 To do that use:
 
 ```bash
-docker build -f Dockerfile --target export --output type=local,dest=. .
+docker build -f internal/al2023_amd64/Dockerfile --target export --output type=local,dest=. .
 ```
