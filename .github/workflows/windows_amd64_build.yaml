@@ -77,21 +77,21 @@ jobs:
 
       - name: "Build PJRT C API CPU plugin"
         run: |
-          cd xla
-          printf "\nStarting XLA bazel build:\n"
-          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
-          
           # AVX-512 is disabled because is doesn't gracefully fallback to AVX2 in runtime,
           # instead it was just crashing. So we build only with AVX2.
+
+          cd xla
+          printf "\nStarting XLA bazel build:\n"
+          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1          
           bazel build \
             --config=clang_local \
             --define=tflite_with_xnnpack=false \
             --copt=-mavx2 \
             --copt=-mfma \
             --copt=/MT \
-            --build_tag_filters=-no_oss,-gpu,-requires-mem-64g \
+            --copt=-D_CRT_SECURE_NO_WARNINGS \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
-            
+
       - name: "Package the binary (zip)"
         run: |
           # Create the tarball.
