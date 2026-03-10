@@ -75,29 +75,6 @@ jobs:
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang.exe \
             --repo_env=USE_CLANG_CL=1 \
             --copt=-march=native \
-            --define xnn_enable_arm_fp16_scalar=false \
-            --define xnn_enable_arm_fp16_vector=false \
-            --define xnn_enable_arm_bf16=false \
-            --define xnn_enable_arm_dotprod=false \
-            --define xnn_enable_arm_i8mm=false \
-            --define xnn_enable_arm_sme=false \
-            --define xnn_enable_arm_sme2=false \
-            --define xnn_enable_riscv_vector=false \
-            --define xnn_enable_riscv_fp16_vector=false \
-            --define xnn_enable_avxvnni=false \
-            --define xnn_enable_avxvnniint8=false \
-            --define xnn_enable_avx256skx=false \
-            --define xnn_enable_avx256vnni=false \
-            --define xnn_enable_avx256vnnigfni=false \
-            --define xnn_enable_avx512f=false \
-            --define xnn_enable_avx512skx=false \
-            --define xnn_enable_avx512vbmi=false \
-            --define xnn_enable_avx512vnni=false \
-            --define xnn_enable_avx512vnnigfni=false \
-            --define xnn_enable_avx512amx=false \
-            --define xnn_enable_avx512fp16=false \
-            --define xnn_enable_avx512bf16=false \
-            --define xnn_enable_hvx=false \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary (zip)"
