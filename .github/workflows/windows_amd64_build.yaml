@@ -54,14 +54,18 @@ jobs:
       - name: Fix Windows paths and environment
         run: |
           cd xla
-          # Fix Windows paths for Bazel compatibility
+          # 1. Fix Windows paths in the generated bazelrc
           sed -i 's|Program Files|PROGRA~1|g' xla_configure.bazelrc
           sed -i 's|\\|/|g' xla_configure.bazelrc
-        
-          # Force Bazel to use the manually installed LLVM for everything
+          
+          # 2. Force Bazel to treat Clang-CL as the primary compiler for all dependencies
+          # Using --compiler=clang-cl is crucial for external libraries like highwayhash.
+          echo "build --compiler=clang-cl" >> xla_configure.bazelrc
+          echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
+          
+          # 3. Explicitly set the path to the compiler in the rc file
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
-          echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
@@ -70,17 +74,17 @@ jobs:
         run: |
           cd xla
           printf "\nStarting XLA bazel build:\n"
-          # 1. We use --config=clang_local to use the LLVM toolchain.
-          # 2. We add -mavx512f to copt to allow inlining of AVX512 kernels.
-          # 3. We disable the specific XNNPACK flags that were causing conflicts.
+          # BAZEL_LLVM_RESPECT_CLANG_ONLY=1 helps prevent falling back to cl.exe
+          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
+          
           bazel build \
             --config=clang_local \
+            --define=tflite_with_xnnpack=false \
             --copt=-march=native \
             --copt=-mavx512f \
             --copt=-mavx512bw \
             --copt=-mavx512dq \
             --copt=-mavx512vl \
-            --define=tflite_with_xnnpack=false \
             --build_tag_filters=-no_oss,-gpu,-requires-mem-64g \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
