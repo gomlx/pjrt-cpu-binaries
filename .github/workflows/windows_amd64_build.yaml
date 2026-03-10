@@ -45,37 +45,43 @@ jobs:
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
           echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
 
-      - run: |
+      - name: Configure XLA
+        run: |
           cd xla
           python configure.py --backend=cpu --os=windows --host_compiler=clang --clang_path=C:/PROGRA~1/LLVM/bin/clang.exe
           cat xla_configure.bazelrc
 
-      - name: Fix Windows paths in bazelrc
+      - name: Fix Windows paths and environment
         run: |
           cd xla
           # Fix Windows paths for Bazel compatibility
-          # Replace "Program Files" with short name (handles both / and \ separators)
           sed -i 's|Program Files|PROGRA~1|g' xla_configure.bazelrc
-          # Convert all backslashes to forward slashes
           sed -i 's|\\|/|g' xla_configure.bazelrc
-          cat xla_configure.bazelrc
+        
+          # Force Bazel to use the manually installed LLVM for everything
+          echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
-          # --ignore-whitespace is required because of the CRLF vs LF difference in windows.
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-      - run: |
+      - name: Build PJRT C API CPU plugin
+        run: |
           cd xla
           printf "\nStarting XLA bazel build:\n"
+          # 1. We use --config=clang_local to use the LLVM toolchain.
+          # 2. We add -mavx512f to copt to allow inlining of AVX512 kernels.
+          # 3. We disable the specific XNNPACK flags that were causing conflicts.
           bazel build \
             --config=clang_local \
-            --action_env=CC=C:/PROGRA~1/LLVM/bin/clang.exe \
-            --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang++.exe \
-            --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
-            --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang.exe \
-            --repo_env=USE_CLANG_CL=1 \
             --copt=-march=native \
+            --copt=-mavx512f \
+            --copt=-mavx512bw \
+            --copt=-mavx512dq \
+            --copt=-mavx512vl \
             --define=tflite_with_xnnpack=false \
+            --build_tag_filters=-no_oss,-gpu,-requires-mem-64g \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary (zip)"
