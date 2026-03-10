@@ -75,6 +75,7 @@ jobs:
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang.exe \
             --repo_env=USE_CLANG_CL=1 \
             --copt=-march=native \
+            --define=tflite_with_xnnpack=false \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary (zip)"
