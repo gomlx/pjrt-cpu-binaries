@@ -84,18 +84,18 @@ jobs:
           # instead it was just crashing. So we build only with AVX2.
           cd xla
           printf "\nStarting XLA bazel build:\n"
-          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
-          
-          # Use -MT instead of /MT to avoid Git-Bash path translation
+          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1          
           bazel build \
             --config=clang_local \
             --define=tflite_with_xnnpack=false \
             --copt=-mavx2 \
             --copt=-mfma \
+            --copt=-mbmi \
+            --copt=-mbmi2 \
             --copt=-MT \
             --copt=-D_CRT_SECURE_NO_WARNINGS \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
-
+            
       - name: "Package the binary (zip)"
         run: |
           # Create the tarball.
