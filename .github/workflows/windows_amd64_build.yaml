@@ -36,8 +36,8 @@ jobs:
           echo "Checking out XLA at commit: $HASH"
           git checkout $HASH
 
-      - run: |
-          # Extract version numbers
+      - name: "Extract version numbers"
+        run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
