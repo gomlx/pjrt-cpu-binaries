@@ -54,16 +54,21 @@ jobs:
       - name: "Fix Windows paths and environment"
         run: |
           cd xla
-          # 1. Fix Windows paths in the generated bazelrc
+          # 1. Fix Windows paths for Bazel compatibility
           sed -i 's|Program Files|PROGRA~1|g' xla_configure.bazelrc
           sed -i 's|\\|/|g' xla_configure.bazelrc
           
-          # 2. Force Bazel to treat Clang-CL as the primary compiler for all dependencies
-          # Using --compiler=clang-cl is crucial for external libraries like highwayhash.
+          # 2. Force Clang-CL and fix "multiple source files" error
           echo "build --compiler=clang-cl" >> xla_configure.bazelrc
+          
+          # 3. Use features that force one-file-at-a-time compilation for safety
+          echo "build --features=-compiler_param_file" >> xla_configure.bazelrc
+          echo "build --features=-archive_param_file" >> xla_configure.bazelrc
+          
+          # 4. Linker safety
           echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
           
-          # 3. Explicitly set the path to the compiler in the rc file
+          # 5. Compiler Paths
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
 
@@ -76,6 +81,8 @@ jobs:
           printf "\nStarting XLA bazel build:\n"
           export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
           
+          # AVX-512 is disabled because is doesn't gracefully fallback to AVX2 in runtime,
+          # instead it was just crashing. So we build only with AVX2.
           bazel build \
             --config=clang_local \
             --define=tflite_with_xnnpack=false \
