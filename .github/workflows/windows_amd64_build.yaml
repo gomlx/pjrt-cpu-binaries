@@ -92,6 +92,7 @@ jobs:
             --copt=-mfma \
             --copt=-mbmi \
             --copt=-mbmi2 \
+            --copt=-mlzcnt \
             --copt=-MT \
             --copt=-D_CRT_SECURE_NO_WARNINGS \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
