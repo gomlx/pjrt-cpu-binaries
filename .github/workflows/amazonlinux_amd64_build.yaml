@@ -38,7 +38,7 @@ jobs:
                   pip3 install six numpy
 
             - name: "Checkout current repository"
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: "Clone and checkout XLA"
               run: |
@@ -52,7 +52,11 @@ jobs:
                   echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
 
             - name: "Setup Bazelisk (for Bazel)"
-              uses: bazelbuild/setup-bazelisk@v3
+              uses: bazel-contrib/setup-bazel@0.18.0
+              with:
+                  bazelisk-cache: true # Caches the bazelisk downloads
+                  disk-cache: ${{ github.workflow }} # Caches the build outputs per workflow
+                  repository-cache: true # Caches external dependencies
 
             - name: "Download and Setup LLVM/Clang"
               run: |

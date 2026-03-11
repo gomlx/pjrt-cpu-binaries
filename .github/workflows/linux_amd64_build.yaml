@@ -18,8 +18,8 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
-      # Check out the pjrt-cpu-binaries repository
+      - uses: actions/checkout@v6
+        # Check out the pjrt-cpu-binaries repository
 
       - name: "Ensure modern libstdc++ for LLVM 20"
         run: |
@@ -38,7 +38,7 @@ jobs:
           echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
 
       - name: "Set up Python 3.11"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           # Optional: cache pip dependencies to speed up subsequent runs
@@ -64,9 +64,11 @@ jobs:
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-20 100
 
       - name: "Setup Bazelisk (for Bazel)"
-        # This action installs and caches the correct Bazel version
-        # specified by the .bazelversion file in the XLA repo.
-        uses: bazelbuild/setup-bazelisk@v3
+        uses: bazel-contrib/setup-bazel@0.18.0
+        with:
+            bazelisk-cache: true # Caches the bazelisk downloads
+            disk-cache: ${{ github.workflow }} # Caches the build outputs per workflow
+            repository-cache: true # Caches external dependencies
 
       - name: "Build Version"
         run: |
