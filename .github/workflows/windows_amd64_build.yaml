@@ -55,7 +55,9 @@ jobs:
         run: |
           cd xla
           # 1. Fix Windows paths for Bazel compatibility
+          #    Replace "Program Files" with short name (handles both / and \ separators)
           sed -i 's|Program Files|PROGRA~1|g' xla_configure.bazelrc
+          #    Convert all backslashes to forward slashes
           sed -i 's|\\|/|g' xla_configure.bazelrc
           
           # 2. Force Clang-CL and fix "multiple source files" error
@@ -87,9 +89,14 @@ jobs:
           export BAZEL_LLVM_RESPECT_CLANG_ONLY=1          
           bazel build \
             --config=clang_local \
+            --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
+            --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
+            --repo_env=USE_CLANG_CL=1 \
+            --copt=-march=native \            
             --define=tflite_with_xnnpack=false \
             --copt=-mavx2 \
             --copt=-mfma \
+            --copt=-mf16c \
             --copt=-mbmi \
             --copt=-mbmi2 \
             --copt=-MT \
