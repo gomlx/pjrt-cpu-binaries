@@ -1,1 +1,3 @@
-pjrt_cpu_amazonlinux_amd64.tar.gz
+# Build artefacts.
+/pjrt_cpu_amazonlinux_amd64.tar.gz
+/pjrt_cpu_linux_amd64.tar.gz

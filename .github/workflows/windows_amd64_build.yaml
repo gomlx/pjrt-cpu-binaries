@@ -36,8 +36,8 @@ jobs:
           echo "Checking out XLA at commit: $HASH"
           git checkout $HASH
 
-      - run: |
-          # Extract version numbers
+      - name: "Extract version numbers"
+        run: |
           BUILDER_VERSION="$(cat BUILDER_VERSION.txt)"
           PJRT_C_API_HEADER="./xla/xla/pjrt/c/pjrt_c_api.h"
           MAJOR=$(grep -E '#define PJRT_API_MAJOR' "${PJRT_C_API_HEADER}" | awk '{print $3}')
@@ -45,59 +45,65 @@ jobs:
           echo "Building PJRT CPU plugin for version ${MAJOR}.${MINOR} (to be used in go-xla as v${MAJOR}.${MINOR}.${BUILDER_VERSION})"
           echo "RELEASE_VERSION=v${MAJOR}.${MINOR}.${BUILDER_VERSION}" >> $GITHUB_ENV
 
-      - run: |
+      - name: "Configure XLA"
+        run: |
           cd xla
           python configure.py --backend=cpu --os=windows --host_compiler=clang --clang_path=C:/PROGRA~1/LLVM/bin/clang.exe
           cat xla_configure.bazelrc
 
-      - name: Fix Windows paths in bazelrc
+      - name: "Fix Windows paths and environment"
         run: |
           cd xla
-          # Fix Windows paths for Bazel compatibility
-          # Replace "Program Files" with short name (handles both / and \ separators)
+          # 1. Fix Windows paths for Bazel compatibility
+          #    Replace "Program Files" with short name (handles both / and \ separators)
           sed -i 's|Program Files|PROGRA~1|g' xla_configure.bazelrc
-          # Convert all backslashes to forward slashes
+          #    Convert all backslashes to forward slashes
           sed -i 's|\\|/|g' xla_configure.bazelrc
-          cat xla_configure.bazelrc
+
+          # 2. Force Clang-CL and fix "multiple source files" error
+          echo "build --compiler=clang-cl" >> xla_configure.bazelrc
+
+          # 3. Prevent Git-Bash from expanding /MT into a path by using the -MT syntax
+          echo "build --copt=-MT" >> xla_configure.bazelrc
+
+          # 4. Force one-file-at-a-time compilation to fix clang-cl /Fo error
+          echo "build --features=-compiler_param_file" >> xla_configure.bazelrc
+          echo "build --features=archive_param_file" >> xla_configure.bazelrc
+          echo "build --features=linker_param_file" >> xla_configure.bazelrc
+
+          # 5. Linker safety
+          echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
+
+          # 6. Compiler Paths
+          echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
-          # --ignore-whitespace is required because of the CRLF vs LF difference in windows.
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-      - run: |
+      - name: "Build PJRT C API CPU plugin"
+        run: |
+          # AVX-512 is disabled because is doesn't gracefully fallback to AVX2 in runtime,
+          # instead it was just crashing. So we build only with AVX2.
           cd xla
           printf "\nStarting XLA bazel build:\n"
-          bazel build \
+          export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
+          bazel --output_user_root="C:/b" \
+            build \
             --config=clang_local \
-            --action_env=CC=C:/PROGRA~1/LLVM/bin/clang.exe \
-            --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang++.exe \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
-            --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang.exe \
+            --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
             --copt=-march=native \
-            --define xnn_enable_arm_fp16_scalar=false \
-            --define xnn_enable_arm_fp16_vector=false \
-            --define xnn_enable_arm_bf16=false \
-            --define xnn_enable_arm_dotprod=false \
-            --define xnn_enable_arm_i8mm=false \
-            --define xnn_enable_arm_sme=false \
-            --define xnn_enable_arm_sme2=false \
-            --define xnn_enable_riscv_vector=false \
-            --define xnn_enable_riscv_fp16_vector=false \
-            --define xnn_enable_avxvnni=false \
-            --define xnn_enable_avxvnniint8=false \
-            --define xnn_enable_avx256skx=false \
-            --define xnn_enable_avx256vnni=false \
-            --define xnn_enable_avx256vnnigfni=false \
-            --define xnn_enable_avx512f=false \
-            --define xnn_enable_avx512skx=false \
-            --define xnn_enable_avx512vbmi=false \
-            --define xnn_enable_avx512vnni=false \
-            --define xnn_enable_avx512vnnigfni=false \
-            --define xnn_enable_avx512amx=false \
-            --define xnn_enable_avx512fp16=false \
-            --define xnn_enable_avx512bf16=false \
-            --define xnn_enable_hvx=false \
+            --define=tflite_with_xnnpack=false \
+            --copt=-mavx2 \
+            --copt=-mfma \
+            --copt=-mf16c \
+            --copt=-mbmi \
+            --copt=-mbmi2 \
+            --copt=-mlzcnt \
+            --copt=-MT \
+            --copt=-D_CRT_SECURE_NO_WARNINGS \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary (zip)"
@@ -112,7 +118,7 @@ jobs:
           7z a "$ZIP_NAME" "${TARGET_NAME}"
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
 
-      - name: Upload release asset
+      - name: "Upload release asset"
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
