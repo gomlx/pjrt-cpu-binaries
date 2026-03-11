@@ -14,7 +14,7 @@ jobs:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: "Install Zig"
               uses: mlugg/setup-zig@v2
@@ -79,7 +79,7 @@ jobs:
                   echo "XLA_HASH=$XLA_HASH" >> $GITHUB_ENV
 
             - name: "Set up Python 3.11"
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v6
               with:
                   python-version: "3.11"
                   cache: "pip"
@@ -90,8 +90,12 @@ jobs:
                   pip install --upgrade pip
                   pip install six numpy
 
-            - name: "Setup Bazelisk"
-              uses: bazelbuild/setup-bazelisk@v3
+            - name: "Setup Bazelisk (for Bazel)"
+              uses: bazel-contrib/setup-bazel@0.18.0
+              with:
+                  bazelisk-cache: true # Caches the bazelisk downloads
+                  disk-cache: ${{ github.workflow }} # Caches the build outputs per workflow
+                  repository-cache: true # Caches external dependencies
 
             - name: "Build Version"
               run: |
