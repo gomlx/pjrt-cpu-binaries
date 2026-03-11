@@ -87,7 +87,7 @@ jobs:
           cd xla
           printf "\nStarting XLA bazel build:\n"
           export BAZEL_LLVM_RESPECT_CLANG_ONLY=1          
-          bazel --output_user_root="C:/b"
+          bazel --output_user_root="C:/b" \
             build \
             --config=clang_local \
             --features=archive_param_file --features=linker_param_file --features=compiler_param_file \
