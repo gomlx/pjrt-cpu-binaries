@@ -68,7 +68,8 @@ jobs:
 
           # 4. Force one-file-at-a-time compilation to fix clang-cl /Fo error
           echo "build --features=-compiler_param_file" >> xla_configure.bazelrc
-          echo "build --features=-archive_param_file" >> xla_configure.bazelrc
+          echo "build --features=archive_param_file" >> xla_configure.bazelrc
+          echo "build --features=linker_param_file" >> xla_configure.bazelrc
 
           # 5. Linker safety
           echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
@@ -90,7 +91,6 @@ jobs:
           bazel --output_user_root="C:/b" \
             build \
             --config=clang_local \
-            --features=archive_param_file --features=linker_param_file --features=compiler_param_file \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
