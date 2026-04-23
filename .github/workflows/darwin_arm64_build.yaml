@@ -65,8 +65,6 @@ jobs:
 
       - name: "Build PJRT C API CPU plugin"
         run: |
-          # Point Bazel to the Homebrew-installed LLVM/Clang
-          # This is the standard path for Homebrew on Apple Silicon runners
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
           export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
           export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
@@ -81,8 +79,16 @@ jobs:
           ./configure.py --backend CPU --os DARWIN --host_compiler CLANG --clang_path "$LLVM_PATH/bin/clang"
 
           printf "\nStarting XLA bazel build:\n"
-          bazel build -c opt //xla/service/cpu:runtime_matmul
-          bazel build -c opt //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
+          # Added --copt and --host_copt flags to bypass the deprecation error
+          bazel build -c opt \
+            --copt="-Wno-error=deprecated-declarations" \
+            --host_copt="-Wno-error=deprecated-declarations" \
+            //xla/service/cpu:runtime_matmul
+            
+          bazel build -c opt \
+            --copt="-Wno-error=deprecated-declarations" \
+            --host_copt="-Wno-error=deprecated-declarations" \
+            //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary"
         run: |
