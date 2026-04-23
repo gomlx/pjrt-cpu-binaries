@@ -15,7 +15,7 @@ These are kept on a separate repository to decouple the versioning from `go-xla`
 
 ## Release Version Numbers
 
-The releases will take the form of `v<A>.<B>.<C>`, where `<A>` are the `PJRT_API_MAJOR` and `PJRT_API_MINOR` constants, 
+The releases will take the form of `v<A>.<B>.<C>`, where `<A>` and `<B>` are the `PJRT_API_MAJOR` and `PJRT_API_MINOR` constants, 
 as defined in [XLA sources](https://github.com/openxla/xla/blob/main/xla/pjrt/c/pjrt_c_api.h#L92).
 And `<C>` is an increasing number added by `pjrt-cpu-binaries`.
 
@@ -29,11 +29,13 @@ E.g.: `v0.83.1` refers to a build based on XLA's PJRT version **0.83**, and `pjr
    Download those.
 4. Create a new release, matching the version of the file inside the PJRT `tar.gz` files (a mix of XLA version with the number in `BUILDER_VERSION.txt`).
    Attach the binary releases.
+5. Updated the `DefaultCPUVersion` in [github.com/gomlx/go-xla/blob/main/internal/utils/utils.go](https://github.com/gomlx/go-xla/blob/main/internal/utils/utils.go#L6) 
+   to use the new PJRT release.
    
-For now the `AmazonLinux` build seem to run out of disk space in the GitHub action, so instead there is a
-`Dockerfile.amazonlinux2023_amd64` that will generate the file `pjrt_cpu_amazonlinux_amd64.tar.gz`.
-It is also faster to run locally (if you have a good desktop) than in the GitHub cloud.
-To do that use:
+For now the `AmazonLinux` build seem to run out of disk space in the GitHub
+action, so instead there is a `Dockerfile.amazonlinux2023_amd64` that will
+generate the file `pjrt_cpu_amazonlinux_amd64.tar.gz`. It is also faster to run
+locally (if you have a good desktop) than in the GitHub cloud. To do that use:
 
 ```bash
 docker build -f internal/al2023_amd64/Dockerfile --target export --output type=local,dest=. .
