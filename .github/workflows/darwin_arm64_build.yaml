@@ -81,13 +81,12 @@ jobs:
           printf "\nStarting XLA bazel build:\n"
           # Added --copt and --host_copt flags to bypass the deprecation error
           bazel build -c opt \
-            --copt="-Wno-error=deprecated-declarations" \
-            --host_copt="-Wno-error=deprecated-declarations" \
-            //xla/service/cpu:runtime_matmul
-            
+            --copt="-w" \
+            --host_copt="-w" \
+            //xla/service/cpu:runtime_matmul  
           bazel build -c opt \
-            --copt="-Wno-error=deprecated-declarations" \
-            --host_copt="-Wno-error=deprecated-declarations" \
+            --copt="-w" \
+            --host_copt="-w" \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary"
