@@ -74,6 +74,11 @@ jobs:
       - name: "Configure XLA"
         run: |
           cd xla
+          # Inject rules_cc dependency into MODULE.bazel for Bazel 8 compatibility
+          if ! grep -q "rules_cc" MODULE.bazel; then
+            echo 'bazel_dep(name = "rules_cc", version = "0.0.17")' >> MODULE.bazel
+          fi
+
           export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           PY_PATH="$(which python3 | tr '\\' '/')"
@@ -168,6 +173,8 @@ EOF
 
           # Fix Bazel 8 rules_cc in generated BUILD files across all workspace bzl files
           find . -type f -name "*.bzl" | while read -r f; do
+            sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\ncc_library(|g' "$f"
+            sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\ncc_library(|g' "$f"
             sed -i 's|repository_ctx\.file(\([^\n]*BUILD[^\n]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" + |g' "$f"
             sed -i 's|repository_ctx\.template(\([^\n]*BUILD[^\n]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template(\1,|g' "$f"
           done
