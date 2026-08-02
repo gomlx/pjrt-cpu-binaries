@@ -242,7 +242,9 @@ EOF
 
           # Use Python to reliably inject rules_cc loads into all .bzl and .tpl files
           python3 -c '
-import os, glob
+import os, re
+
+load_stmt = "load(\"@rules_cc//cc:defs.bzl\", \"cc_library\", \"cc_import\")\n"
 
 for root, _, files in os.walk("."):
     for f in files:
@@ -250,16 +252,16 @@ for root, _, files in os.walk("."):
             path = os.path.join(root, f)
             with open(path, "r", encoding="utf-8", errors="ignore") as fh:
                 content = fh.read()
-            if "repository_ctx.file(" in content or "repository_ctx.template(" in content:
-                content = content.replace("repository_ctx.file(\"BUILD\",", "repository_ctx.file(\"BUILD\", \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\\"cc_library\\\", \\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(\x27BUILD\x27,", "repository_ctx.file(\x27BUILD\x27, \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\\"cc_library\\\", \\\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(tpl_name,", "repository_ctx.file(tpl_name, \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\"cc_library\\", \\\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(\"rocm/BUILD\",", "repository_ctx.file(\"rocm/BUILD\", \"load(\\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(\x27rocm/BUILD\x27,", "repository_ctx.file(\x27rocm/BUILD\x27, \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\\"cc_library\\", \\\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(\"crosstool/BUILD\",", "repository_ctx.file(\"crosstool/BUILD\", \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\"cc_library\\", \\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.file(\x27crosstool/BUILD\x27,", "repository_ctx.file(\x27crosstool/BUILD\x27, \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\"cc_library\\", \\"cc_import\\\")\\n\" +")
-                content = content.replace("repository_ctx.template(\"BUILD\",", "repository_ctx.file(\"BUILD\", \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\\"cc_library\\", \\\"cc_import\\\")\\n\")\n  repository_ctx.template(\"BUILD\",")
-                content = content.replace("repository_ctx.template(\"rocm/BUILD\",", "repository_ctx.file(\"rocm/BUILD\", \"load(\\\"@rules_cc//cc:defs.bzl\\\", \\\"cc_library\\", \\\"cc_import\\\")\\n\")\n  repository_ctx.template(\"rocm/BUILD\",")
+            
+            # Prepend rules_cc load to all repository_ctx.file calls writing BUILD files
+            content = re.sub(r"(repository_ctx\.file\s*\(\s*[\"'\w/_\.-]*BUILD[\"'\w/_\.-]*\s*,)", r"\1 \"" + load_stmt.replace("\n", "\\n") + "\" + ", content)
+            
+            # Prepend rules_cc load to all repository_ctx.template calls writing BUILD files
+            content = re.sub(r"(repository_ctx\.template\s*\(\s*([\"'\w/_\.-]*BUILD[\"'\w/_\.-]*)\s*,)", r"repository_ctx.file(\2, \"" + load_stmt.replace("\n", "\\n") + "\")\n  \1", content)
+
+            # Prepend rules_cc load to multi-line string templates defining cc_library
+            content = content.replace("\"\"\"cc_library(", "\"\"\"" + load_stmt + "cc_library(")
+            
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(content)
 '
