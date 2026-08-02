@@ -110,9 +110,21 @@ jobs:
           # 6. Compiler Paths
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
-          VC_PATH=$(cygpath -d "$VCTOOLSINSTALLDIR" | tr '/' '\\')
-          echo "build --action_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
-          echo "build --repo_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
+          
+          # Compute BAZEL_VC safely
+          TARGET_VC_DIR="${VCToolsInstallDir:-${VCTOOLSINSTALLDIR}}"
+          if [ -z "$TARGET_VC_DIR" ]; then
+            TARGET_VC_DIR=$(find "C:/Program Files/Microsoft Visual Studio" -name "cl.exe" | grep "Hostx64/x64" | head -n 1)
+            if [ -n "$TARGET_VC_DIR" ]; then
+              TARGET_VC_DIR=$(dirname $(dirname $(dirname $(dirname "$TARGET_VC_DIR"))))
+            fi
+          fi
+          if [ -n "$TARGET_VC_DIR" ]; then
+            VC_PATH=$(cygpath -d "$TARGET_VC_DIR" | tr '/' '\\')
+            echo "Found VC_PATH: $VC_PATH"
+            echo "build --action_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
+            echo "build --repo_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
+          fi
           echo "build --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1" >> xla_configure.bazelrc
           echo "build --repo_env=BAZEL_LLVM=C:/PROGRA~1/LLVM" >> xla_configure.bazelrc
           echo "build --repo_env=USE_CLANG_CL=1" >> xla_configure.bazelrc
