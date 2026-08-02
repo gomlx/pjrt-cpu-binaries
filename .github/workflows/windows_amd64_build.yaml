@@ -108,11 +108,11 @@ jobs:
           echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
 
           # 6. Compiler Paths
-          echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
-          echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC=${BAZEL_VC}" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VS=${BAZEL_VS}" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC_FULL_VERSION=${BAZEL_VC_FULL_VERSION}" >> xla_configure.bazelrc
+          echo 'build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe' >> xla_configure.bazelrc
+          echo 'build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe' >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC=\"${BAZEL_VC}\"" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VS=\"${BAZEL_VS}\"" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC_FULL_VERSION=\"${BAZEL_VC_FULL_VERSION}\"" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
@@ -135,7 +135,6 @@ jobs:
             --repo_env=BAZEL_VC="${BAZEL_VC}" \
             --repo_env=BAZEL_VS="${BAZEL_VS}" \
             --repo_env=BAZEL_VC_FULL_VERSION="${BAZEL_VC_FULL_VERSION}" \
-            --action_env=PATH="${PATH}" \
             --copt=-march=native \
             --define=tflite_with_xnnpack=false \
             --copt=-mavx2 \
