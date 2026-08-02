@@ -134,11 +134,9 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-          # Fix Bazel 8 / rules_cc compatibility in rocm/cuda generated BUILD files
-          find third_party/gpus/ -type f -name "*.tpl" | while read -r f; do
-            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
-          done
-          find third_party/gpus/ -type f -name "BUILD" | while read -r f; do
+          # Fix Bazel 8 / rules_cc compatibility in rocm/cuda generated BUILD files and build_defs.bzl
+          find third_party/gpus/ -type f \( -name "*.tpl" -o -name "BUILD" -o -name "*.bzl" \) | while read -r f; do
+            sed -i '/@rules_cc\/\/cc:defs.bzl/d' "$f"
             sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
           done
 
