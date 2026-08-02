@@ -139,6 +139,10 @@ jobs:
             sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
             sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
           done
+          # Disable GPU extension definitions in MODULE.bazel if present
+          if [ -f "MODULE.bazel" ]; then
+            sed -i 's|use_extension("//third_party/extensions:rocm_configure.bzl"|# &|g' MODULE.bazel
+          fi
 
       - name: "Build PJRT C API CPU plugin"
         run: |
