@@ -185,9 +185,16 @@ EOF
           # Create dummy repositories for local_config_rocm and local_config_cuda to bypass rocm/cuda configure rules
           mkdir -p ../dummy_rocm/rocm ../dummy_cuda/cuda
           touch ../dummy_rocm/MODULE.bazel ../dummy_cuda/MODULE.bazel
-          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_rocm/BUILD
-          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_rocm/rocm/BUILD
-          echo 'cc_library(name = "rocm", visibility = ["//visibility:public"])' >> ../dummy_rocm/rocm/BUILD
+          cat << 'EOF' > ../dummy_rocm/BUILD
+load("@rules_cc//cc:defs.bzl", "cc_library")
+cc_library(name = "rocm", visibility = ["//visibility:public"])
+cc_library(name = "hip", visibility = ["//visibility:public"])
+EOF
+          cat << 'EOF' > ../dummy_rocm/rocm/BUILD
+load("@rules_cc//cc:defs.bzl", "cc_library")
+cc_library(name = "rocm", visibility = ["//visibility:public"])
+cc_library(name = "hip", visibility = ["//visibility:public"])
+EOF
           
           cat << 'EOF' > ../dummy_rocm/rocm/build_defs.bzl
 def if_rocm_is_configured(x, default = []):
@@ -197,9 +204,14 @@ def if_rocm_hip_khr_cooperative_groups(x, default = []):
 EOF
           cp ../dummy_rocm/rocm/build_defs.bzl ../dummy_rocm/build_defs.bzl
 
-          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_cuda/BUILD
-          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_cuda/cuda/BUILD
-          echo 'cc_library(name = "cuda", visibility = ["//visibility:public"])' >> ../dummy_cuda/cuda/BUILD
+          cat << 'EOF' > ../dummy_cuda/BUILD
+load("@rules_cc//cc:defs.bzl", "cc_library")
+cc_library(name = "cuda", visibility = ["//visibility:public"])
+EOF
+          cat << 'EOF' > ../dummy_cuda/cuda/BUILD
+load("@rules_cc//cc:defs.bzl", "cc_library")
+cc_library(name = "cuda", visibility = ["//visibility:public"])
+EOF
           
           cat << 'EOF' > ../dummy_cuda/cuda/build_defs.bzl
 def if_cuda_is_configured(x, default = []):
