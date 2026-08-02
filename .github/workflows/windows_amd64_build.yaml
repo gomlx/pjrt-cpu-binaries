@@ -134,14 +134,20 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-          # Clean stale Bazel output user root to ensure clean repository rule evaluation
-          rm -rf C:/b 2>/dev/null || true
+          # Create dummy repositories for local_config_rocm and local_config_cuda to bypass rocm/cuda configure rules
+          mkdir -p ../dummy_rocm ../dummy_cuda
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_rocm/BUILD
+          echo 'cc_library(name = "rocm", visibility = ["//visibility:public"])' >> ../dummy_rocm/BUILD
+          touch ../dummy_rocm/build_defs.bzl
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_cuda/BUILD
+          echo 'cc_library(name = "cuda", visibility = ["//visibility:public"])' >> ../dummy_cuda/BUILD
+          touch ../dummy_cuda/build_defs.bzl
 
-          # Fix Bazel 8 / rules_cc compatibility in rocm/cuda generated BUILD files and templates
-          find third_party/gpus/ -type f \( -name "*.tpl" -o -name "BUILD" \) | while read -r f; do
-            sed -i '/@rules_cc\/\/cc:defs.bzl/d' "$f"
-            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
-          done
+          DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
+          DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
+
+          echo "build --override_repository=local_config_rocm=${DUMMY_ROCM_PATH}" >> xla_configure.bazelrc
+          echo "build --override_repository=local_config_cuda=${DUMMY_CUDA_PATH}" >> xla_configure.bazelrc
 
       - name: "Build PJRT C API CPU plugin"
         run: |
