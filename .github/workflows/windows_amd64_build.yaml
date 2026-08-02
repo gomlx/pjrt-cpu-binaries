@@ -45,7 +45,7 @@ jobs:
             if [ -n "$key" ] && [ -n "$val" ]; then
               if [ "$key" = "PATH" ] || [ "$key" = "Path" ] || [ "$key" = "path" ]; then
                 echo "$val" | tr ';' '\n' | while read -r p; do
-                  if [ -n "$p" ]; then
+                  if [ -n "$p" ] && [[ "$p" != *"WindowsApps"* ]]; then
                     echo "$(cygpath -u "$p" 2>/dev/null || echo "$p")" >> $GITHUB_PATH
                   fi
                 done
