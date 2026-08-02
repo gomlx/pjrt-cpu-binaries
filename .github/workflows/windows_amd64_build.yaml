@@ -262,12 +262,13 @@ for root, _, files in os.walk("."):
             # Prepend rules_cc load to multi-line string templates defining cc_library
             content = content.replace("\"\"\"cc_library(", "\"\"\"" + load_stmt + "cc_library(")
             
+            # Inject load directly before any top-level cc_library in .tpl files
+            if f.endswith(".tpl") and "cc_library(" in content and "load(" not in content:
+                content = load_stmt + content
+
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(content)
 '
-
-          # Fetch repository dependencies using legacy workspace mode
-          bazel fetch --enable_bzlmod=false @local_config_rocm//... || true
 
       - name: "Build PJRT C API CPU plugin"
         run: |
@@ -281,11 +282,11 @@ for root, _, files in os.walk("."):
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
           bazel --output_user_root="C:/b" \
             build \
-            --enable_bzlmod=false \
-            --deleted_packages=third_party/gpus/rocm,third_party/gpus/crosstool,third_party/gpus/cuda \
             --override_repository=local_config_rocm="${DUMMY_ROCM_PATH}" \
             --override_repository=local_config_cuda="${DUMMY_CUDA_PATH}" \
+            --override_repository=local_config_rocm_ext="${DUMMY_ROCM_PATH}" \
             --incompatible_enable_cc_toolchain_resolution=false \
+            --check_direct_dependencies=off \
             --config=clang_local \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
