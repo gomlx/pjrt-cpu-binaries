@@ -138,10 +138,12 @@ jobs:
           find third_party/gpus/ -type f \( -name "*.bzl" -o -name "*.py" \) | while read -r f; do
             sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
             sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
+            sed -i 's|genrule(|load("@rules_cc//cc:defs.bzl", "cc_library")\ngenrule(|g' "$f"
           done
-          # Disable rocm_configure in MODULE.bazel
-          if [ -f "MODULE.bazel" ]; then
-            sed -i '/rocm_configure/s/^/#/' MODULE.bazel
+          # Patch rocm_configure.bzl specifically to inject load("@rules_cc//cc:defs.bzl", "cc_library") at the top of every generated BUILD file
+          ROCM_CONF="third_party/gpus/rocm_configure.bzl"
+          if [ -f "$ROCM_CONF" ]; then
+            sed -i 's|repository_ctx.file("BUILD", |repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\")\\n" + |g' "$ROCM_CONF"
           fi
 
       - name: "Build PJRT C API CPU plugin"
