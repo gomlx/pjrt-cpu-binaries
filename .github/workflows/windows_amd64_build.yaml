@@ -127,6 +127,7 @@ jobs:
           export BAZEL_LLVM="C:/PROGRA~1/LLVM"
           bazel --output_user_root="C:/b" \
             build \
+            --incompatible_enable_cc_toolchain_resolution=false \
             --config=clang_local \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
