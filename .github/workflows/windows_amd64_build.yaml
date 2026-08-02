@@ -132,10 +132,11 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-          # Fix Bazel 8 / rules_cc compatibility in local_config_rocm
-          # In newer Bazel versions, cc_library is no longer built-in without load()
-          find C:/b -name "local_config_rocm" -o -name "rocm_configure.bzl" 2>/dev/null || true
-          echo "build --deleted_packages=third_party/gpus/rocm" >> xla_configure.bazelrc
+          # Fix Bazel 8 / rules_cc compatibility in local_config_rocm / rocm BUILD files
+          ROCM_BUILD="third_party/gpus/rocm/BUILD"
+          if [ -f "$ROCM_BUILD" ]; then
+            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library")\n|' "$ROCM_BUILD"
+          fi
 
       - name: "Build PJRT C API CPU plugin"
         run: |
