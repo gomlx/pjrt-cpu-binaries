@@ -26,10 +26,14 @@ jobs:
 
       - run: |
           choco install llvm -y
-          VC_PATH="C:/PROGRA~1/MICROS~1/2022/Enterprise/VC"
-          VS_PATH="C:/PROGRA~1/MICROS~1/2022/Enterprise"
-          echo "BAZEL_VC=${VC_PATH}" >> $GITHUB_ENV
-          echo "BAZEL_VS=${VS_PATH}" >> $GITHUB_ENV
+          VS_INSTALL_DIR=$(C:/PROGRA~1/MICROS~1/Installer/vswhere.exe -latest -property installationPath | tr '\\' '/')
+          echo "Found VS Install Dir: $VS_INSTALL_DIR"
+          VC_DIR=$(cygpath -m "$VS_INSTALL_DIR/VC")
+          echo "BAZEL_VC=${VC_DIR}" >> $GITHUB_ENV
+          echo "BAZEL_VS=$(cygpath -m "$VS_INSTALL_DIR")" >> $GITHUB_ENV
+          
+          # Find where dumpbin.exe is located to verify MSVC tools exist
+          find "$VS_INSTALL_DIR" -name "dumpbin.exe" || true
 
       - run: |
           git clone https://github.com/openxla/xla
