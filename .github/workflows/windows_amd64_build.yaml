@@ -166,10 +166,12 @@ EOF
           DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
 
-          echo "build --override_repository=local_config_rocm=${DUMMY_ROCM_PATH}" >> xla_configure.bazelrc
-          echo "build --override_repository=local_config_cuda=${DUMMY_CUDA_PATH}" >> xla_configure.bazelrc
-          echo "build --repo_env=override_repository=local_config_rocm=${DUMMY_ROCM_PATH}" >> xla_configure.bazelrc
-          echo "build --repo_env=override_repository=local_config_cuda=${DUMMY_CUDA_PATH}" >> xla_configure.bazelrc
+          # Fix Bazel 8 rules_cc in generated BUILD files from rocm_configure.bzl
+          find third_party/gpus/ -type f -name "*.bzl" | while read -r f; do
+            sed -i 's|repository_ctx.file("BUILD",|repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+            sed -i 's|repository_ctx.file("rocm/BUILD",|repository_ctx.file("rocm/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+            sed -i 's|repository_ctx.file("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+          done
 
       - name: "Build PJRT C API CPU plugin"
         run: |
