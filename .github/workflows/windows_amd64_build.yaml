@@ -158,6 +158,8 @@ def if_cuda_is_configured(x, default = []):
     return default
 def if_cuda(x, default = []):
     return default
+def cuda_default_copts(x = []):
+    return []
 EOF
           cp ../dummy_cuda/cuda/build_defs.bzl ../dummy_cuda/build_defs.bzl
 
