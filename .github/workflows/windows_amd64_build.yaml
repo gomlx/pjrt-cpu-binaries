@@ -135,8 +135,10 @@ jobs:
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
           # Fix Bazel 8 / rules_cc compatibility in local_config_rocm / rocm BUILD files
-          find third_party -name "*rocm*.bzl" | while read -r bzl; do
+          find . -name "rocm_configure.bzl" -o -name "rocm_redist.bzl" | while read -r bzl; do
             sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$bzl"
+            sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$bzl"
+            sed -i 's|cc_library\\n|load("@rules_cc//cc:defs.bzl", "cc_library")\\ncc_library\\n|g' "$bzl"
           done
           find third_party -name "*rocm*BUILD*" | while read -r f; do
             sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library")\n|' "$f"
