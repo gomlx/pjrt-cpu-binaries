@@ -26,6 +26,10 @@ jobs:
 
       - run: |
           choco install llvm -y
+          VC_PATH="C:/PROGRA~1/MICROS~1/2022/Enterprise/VC"
+          VS_PATH="C:/PROGRA~1/MICROS~1/2022/Enterprise"
+          echo "BAZEL_VC=${VC_PATH}" >> $GITHUB_ENV
+          echo "BAZEL_VS=${VS_PATH}" >> $GITHUB_ENV
 
       - run: |
           git clone https://github.com/openxla/xla
@@ -92,7 +96,8 @@ jobs:
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
-            --repo_env=BAZEL_VC="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC" \
+            --repo_env=BAZEL_VC="${BAZEL_VC}" \
+            --repo_env=BAZEL_VS="${BAZEL_VS}" \
             --copt=-march=native \
             --define=tflite_with_xnnpack=false \
             --copt=-mavx2 \
