@@ -110,6 +110,9 @@ jobs:
           # 6. Compiler Paths
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          VC_PATH=$(cygpath -d "$VCTOOLSINSTALLDIR" | tr '/' '\\')
+          echo "build --action_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
+          echo "build --repo_env=BAZEL_VC=${VC_PATH}" >> xla_configure.bazelrc
           echo "build --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1" >> xla_configure.bazelrc
           echo "build --repo_env=BAZEL_LLVM=C:/PROGRA~1/LLVM" >> xla_configure.bazelrc
           echo "build --repo_env=USE_CLANG_CL=1" >> xla_configure.bazelrc
