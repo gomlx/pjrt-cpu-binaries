@@ -32,20 +32,8 @@ jobs:
           fi
           VS_INSTALL_DIR="$("$VSWHERE" -latest -property installationPath | tr '\\' '/')"
           echo "Found VS Install Dir: $VS_INSTALL_DIR"
-          VS_SHORT=$(cygpath -d "$VS_INSTALL_DIR" | tr '\\' '/')
-          VC_SHORT="${VS_SHORT}/VC"
-          echo "BAZEL_VC=${VC_SHORT}" >> $GITHUB_ENV
-          echo "BAZEL_VS=${VS_SHORT}" >> $GITHUB_ENV
           
-          DUMPBIN_PATH=$(find "$VS_INSTALL_DIR" -name "dumpbin.exe" | head -n 1)
-          echo "Found dumpbin at: $DUMPBIN_PATH"
-          if [ -n "$DUMPBIN_PATH" ]; then
-            DUMPBIN_DIR=$(dirname "$DUMPBIN_PATH")
-            echo "$DUMPBIN_DIR" >> $GITHUB_PATH
-            export PATH="$DUMPBIN_DIR:$PATH"
-          fi
-          
-          # Add MSVC VC/Tools/MSVC x64 bin directory to PATH
+          # Add MSVC VC/Tools/MSVC x64 bin directory to PATH so dumpbin.exe and cl.exe are available
           MSVC_BIN_DIR=$(find "$VS_INSTALL_DIR/VC/Tools/MSVC" -name "cl.exe" | grep "Hostx64/x64" | head -n 1)
           if [ -n "$MSVC_BIN_DIR" ]; then
             MSVC_BIN_DIR=$(dirname "$MSVC_BIN_DIR")
@@ -53,10 +41,6 @@ jobs:
             echo "$MSVC_BIN_DIR" >> $GITHUB_PATH
             export PATH="$MSVC_BIN_DIR:$PATH"
           fi
-          
-          MSVC_VER=$(ls "$VS_INSTALL_DIR/VC/Tools/MSVC" | head -n 1)
-          echo "Found MSVC version: $MSVC_VER"
-          echo "BAZEL_VC_FULL_VERSION=${MSVC_VER}" >> $GITHUB_ENV
 
       - run: |
           git clone https://github.com/openxla/xla
@@ -79,9 +63,6 @@ jobs:
           cd xla
           export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
-          export BAZEL_VC="${BAZEL_VC}"
-          export BAZEL_VS="${BAZEL_VS}"
-          export BAZEL_VC_FULL_VERSION="${BAZEL_VC_FULL_VERSION}"
           python configure.py --backend=cpu --os=windows --host_compiler=clang --clang_path=C:/PROGRA~1/LLVM/bin/clang.exe
           cat xla_configure.bazelrc
 
@@ -111,9 +92,6 @@ jobs:
           # 6. Compiler Paths
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC=${BAZEL_VC}" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VS=${BAZEL_VS}" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC_FULL_VERSION=${BAZEL_VC_FULL_VERSION}" >> xla_configure.bazelrc
           echo "build --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1" >> xla_configure.bazelrc
           echo "build --repo_env=BAZEL_LLVM=C:/PROGRA~1/LLVM" >> xla_configure.bazelrc
           echo "build --repo_env=USE_CLANG_CL=1" >> xla_configure.bazelrc
@@ -136,9 +114,6 @@ jobs:
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
             --repo_env=BAZEL_LLVM="C:/PROGRA~1/LLVM" \
-            --repo_env=BAZEL_VC="${BAZEL_VC}" \
-            --repo_env=BAZEL_VS="${BAZEL_VS}" \
-            --repo_env=BAZEL_VC_FULL_VERSION="${BAZEL_VC_FULL_VERSION}" \
             --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1 \
             --copt=-march=native \
             --define=tflite_with_xnnpack=false \
