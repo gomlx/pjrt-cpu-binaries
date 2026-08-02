@@ -166,11 +166,14 @@ EOF
           DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
 
-          # Fix Bazel 8 rules_cc in generated BUILD files from rocm_configure.bzl
+          # Fix Bazel 8 rules_cc in generated BUILD files from rocm_configure.bzl & cuda_configure.bzl
           find third_party/gpus/ -type f -name "*.bzl" | while read -r f; do
             sed -i 's|repository_ctx.file("BUILD",|repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
             sed -i 's|repository_ctx.file("rocm/BUILD",|repository_ctx.file("rocm/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
             sed -i 's|repository_ctx.file("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+            sed -i 's|repository_ctx.template("BUILD",|repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template("BUILD",|g' "$f"
+            sed -i 's|repository_ctx.template("rocm/BUILD",|repository_ctx.file("rocm/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template("rocm/BUILD",|g' "$f"
+            sed -i 's|repository_ctx.template("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template("crosstool/BUILD",|g' "$f"
           done
 
       - name: "Build PJRT C API CPU plugin"
