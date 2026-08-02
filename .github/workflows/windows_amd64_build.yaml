@@ -214,6 +214,18 @@ EOF
           DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
 
+          # Inject local_repository overrides into WORKSPACE for legacy repository resolution
+          cat << EOF >> WORKSPACE
+local_repository(
+    name = "local_config_rocm",
+    path = "${DUMMY_ROCM_PATH}",
+)
+local_repository(
+    name = "local_config_cuda",
+    path = "${DUMMY_CUDA_PATH}",
+)
+EOF
+
           # Prepend load rules_cc directly into template files
           find third_party/gpus/ -type f -name "*.tpl" | while read -r f; do
             sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
