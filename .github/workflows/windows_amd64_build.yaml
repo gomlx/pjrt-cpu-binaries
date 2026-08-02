@@ -76,6 +76,8 @@ jobs:
           cd xla
           export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
+          PY_PATH="$(which python3 | tr '\\' '/')"
+          export PYTHON_BIN_PATH="${PY_PATH}"
           python3 configure.py --backend=cpu --os=windows --host_compiler=clang --clang_path=C:/PROGRA~1/LLVM/bin/clang.exe
           cat xla_configure.bazelrc
 
