@@ -76,6 +76,11 @@ jobs:
       - name: "Configure XLA"
         run: |
           cd xla
+          export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
+          export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
+          export BAZEL_VC="${BAZEL_VC}"
+          export BAZEL_VS="${BAZEL_VS}"
+          export BAZEL_VC_FULL_VERSION="${BAZEL_VC_FULL_VERSION}"
           python configure.py --backend=cpu --os=windows --host_compiler=clang --clang_path=C:/PROGRA~1/LLVM/bin/clang.exe
           cat xla_configure.bazelrc
 
@@ -105,6 +110,9 @@ jobs:
           # 6. Compiler Paths
           echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
           echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC=${BAZEL_VC}" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VS=${BAZEL_VS}" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC_FULL_VERSION=${BAZEL_VC_FULL_VERSION}" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
