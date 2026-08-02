@@ -134,13 +134,14 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
+          # Clean stale Bazel output user root to ensure clean repository rule evaluation
+          rm -rf C:/b 2>/dev/null || true
+
           # Fix Bazel 8 / rules_cc compatibility in rocm/cuda generated BUILD files and templates
           find third_party/gpus/ -type f \( -name "*.tpl" -o -name "BUILD" \) | while read -r f; do
             sed -i '/@rules_cc\/\/cc:defs.bzl/d' "$f"
             sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
           done
-          # Clean stale cached local_config_rocm in Bazel output user root
-          rm -rf C:/b/*/external/+rocm_configure_ext+local_config_rocm 2>/dev/null || true
 
       - name: "Build PJRT C API CPU plugin"
         run: |
