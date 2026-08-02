@@ -251,6 +251,9 @@ EOF
             sed -i 's|repository_ctx\.file("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
           done
 
+          # Fetch repository dependencies using legacy workspace mode
+          bazel fetch --enable_bzlmod=false @local_config_rocm//... || true
+
       - name: "Build PJRT C API CPU plugin"
         run: |
           # AVX-512 is disabled because is doesn't gracefully fallback to AVX2 in runtime,
