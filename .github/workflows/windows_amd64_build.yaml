@@ -246,12 +246,7 @@ EOF
           done
           # Force rules_cc load prepend on all repository_ctx.file statements across all .bzl files in xla
           find . -type f -name "*.bzl" | while read -r f; do
-            sed -i 's|repository_ctx\.file("BUILD",|repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
-            sed -i "s|repository_ctx\.file('BUILD',|repository_ctx.file('BUILD', 'load(\"@rules_cc//cc:defs.bzl\", \"cc_library\", \"cc_import\")\n' +|g" "$f"
-            sed -i 's|repository_ctx\.file("rocm/BUILD",|repository_ctx.file("rocm/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
-            sed -i "s|repository_ctx\.file('rocm/BUILD',|repository_ctx.file('rocm/BUILD', 'load(\"@rules_cc//cc:defs.bzl\", \"cc_library\", \"cc_import\")\n' +|g" "$f"
-            sed -i 's|repository_ctx\.file("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
-            sed -i "s|repository_ctx\.file('crosstool/BUILD',|repository_ctx.file('crosstool/BUILD', 'load(\"@rules_cc//cc:defs.bzl\", \"cc_library\", \"cc_import\")\n' +|g" "$f"
+            sed -i 's|repository_ctx\.file(\([^,]\+\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
           done
 
           # Fetch repository dependencies using legacy workspace mode
