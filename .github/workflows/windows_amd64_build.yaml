@@ -33,13 +33,24 @@ jobs:
           VS_INSTALL_DIR="$("$VSWHERE" -latest -property installationPath | tr '\\' '/')"
           echo "Found VS Install Dir: $VS_INSTALL_DIR"
           
-          # Add MSVC VC/Tools/MSVC x64 bin directory to PATH so dumpbin.exe and cl.exe are available
+          # Add MSVC VC/Tools/MSVC x64 bin directory to PATH so cl.exe and dumpbin.exe are available
           MSVC_BIN_DIR=$(find "$VS_INSTALL_DIR/VC/Tools/MSVC" -name "cl.exe" | grep "Hostx64/x64" | head -n 1)
           if [ -n "$MSVC_BIN_DIR" ]; then
             MSVC_BIN_DIR=$(dirname "$MSVC_BIN_DIR")
             echo "Found MSVC bin at: $MSVC_BIN_DIR"
             echo "$MSVC_BIN_DIR" >> $GITHUB_PATH
             export PATH="$MSVC_BIN_DIR:$PATH"
+          fi
+          
+          DUMPBIN_PATH=$(find "$VS_INSTALL_DIR" -name "dumpbin.exe" | grep "Hostx64/x64" | head -n 1)
+          if [ -z "$DUMPBIN_PATH" ]; then
+            DUMPBIN_PATH=$(find "$VS_INSTALL_DIR" -name "dumpbin.exe" | head -n 1)
+          fi
+          if [ -n "$DUMPBIN_PATH" ]; then
+            DUMPBIN_DIR=$(dirname "$DUMPBIN_PATH")
+            echo "Found dumpbin at: $DUMPBIN_DIR"
+            echo "$DUMPBIN_DIR" >> $GITHUB_PATH
+            export PATH="$DUMPBIN_DIR:$PATH"
           fi
 
       - run: |
