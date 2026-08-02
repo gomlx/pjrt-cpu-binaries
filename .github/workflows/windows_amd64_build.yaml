@@ -41,6 +41,15 @@ jobs:
           if [ -n "$DUMPBIN_PATH" ]; then
             DUMPBIN_DIR=$(dirname "$DUMPBIN_PATH")
             echo "$DUMPBIN_DIR" >> $GITHUB_PATH
+            export PATH="$DUMPBIN_DIR:$PATH"
+          fi
+          
+          # Add MSVC VC/Tools/MSVC x64 bin directory to PATH
+          MSVC_BIN_DIR=$(find "$VS_INSTALL_DIR/VC/Tools/MSVC" -name "cl.exe" | grep "Hostx64/x64" | head -n 1)
+          if [ -n "$MSVC_BIN_DIR" ]; then
+            MSVC_BIN_DIR=$(dirname "$MSVC_BIN_DIR")
+            echo "Found MSVC bin at: $MSVC_BIN_DIR"
+            echo "$MSVC_BIN_DIR" >> $GITHUB_PATH
           fi
 
       - run: |
@@ -102,12 +111,14 @@ jobs:
           cd xla
           printf "\nStarting XLA bazel build:\n"
           export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
+          export BAZEL_LLVM="C:/PROGRA~1/LLVM"
           bazel --output_user_root="C:/b" \
             build \
             --config=clang_local \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
+            --repo_env=BAZEL_LLVM="C:/PROGRA~1/LLVM" \
             --repo_env=BAZEL_VC="${BAZEL_VC}" \
             --repo_env=BAZEL_VS="${BAZEL_VS}" \
             --copt=-march=native \
