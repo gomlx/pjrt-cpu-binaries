@@ -134,23 +134,13 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
-          # Fix Bazel 8 / rules_cc compatibility in rocm/cuda configuration bzl files
-          find third_party/gpus/ -type f \( -name "*.bzl" -o -name "*.py" \) | while read -r f; do
-            sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
-            sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$f"
-            sed -i 's|genrule(|load("@rules_cc//cc:defs.bzl", "cc_library")\ngenrule(|g' "$f"
-            sed -i 's|cc_import(|load("@rules_cc//cc:defs.bzl", "cc_import")\ncc_import(|g' "$f"
+          # Fix Bazel 8 / rules_cc compatibility in rocm/cuda generated BUILD files
+          find third_party/gpus/ -type f -name "*.tpl" | while read -r f; do
+            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
           done
-          # Patch rocm_configure.bzl specifically to inject load("@rules_cc//cc:defs.bzl", "cc_library") at the top of every generated BUILD file
-          ROCM_CONF="third_party/gpus/rocm_configure.bzl"
-          if [ -f "$ROCM_CONF" ]; then
-            sed -i 's|repository_ctx.template("BUILD", |repository_ctx.template("BUILD", |g' "$ROCM_CONF"
-            sed -i 's|"""|"""load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|1' "$ROCM_CONF"
-          fi
-          ROCM_BUILD_TMPL="third_party/gpus/rocm/BUILD.tpl"
-          if [ -f "$ROCM_BUILD_TMPL" ]; then
-            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$ROCM_BUILD_TMPL"
-          fi
+          find third_party/gpus/ -type f -name "BUILD" | while read -r f; do
+            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
+          done
 
       - name: "Build PJRT C API CPU plugin"
         run: |
