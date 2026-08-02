@@ -133,10 +133,12 @@ jobs:
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
           # Fix Bazel 8 / rules_cc compatibility in local_config_rocm / rocm BUILD files
-          ROCM_BUILD="third_party/gpus/rocm/BUILD"
-          if [ -f "$ROCM_BUILD" ]; then
-            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library")\n|' "$ROCM_BUILD"
-          fi
+          find third_party -name "*rocm*.bzl" | while read -r bzl; do
+            sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(|g' "$bzl"
+          done
+          find third_party -name "*rocm*BUILD*" | while read -r f; do
+            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library")\n|' "$f"
+          done
 
       - name: "Build PJRT C API CPU plugin"
         run: |
