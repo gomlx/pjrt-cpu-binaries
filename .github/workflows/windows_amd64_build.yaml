@@ -214,17 +214,15 @@ EOF
           DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
 
-          # Fix Bazel 8 rules_cc in generated BUILD files across all workspace bzl files
-          find . -type f -name "*.bzl" | while read -r f; do
-            sed -i 's|"""cc_library(|"""load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\ncc_library(|g' "$f"
-            sed -i 's|cc_library(|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\ncc_library(|g' "$f"
-            sed -i 's|repository_ctx\.file(\([^\n]*BUILD[^\n]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" + |g' "$f"
-            sed -i 's|repository_ctx\.template(\([^\n]*BUILD[^\n]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template(\1,|g' "$f"
+          # Prepend load rules_cc directly into template files
+          find third_party/gpus/ -type f -name "*.tpl" | while read -r f; do
+            sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
           done
           # Force rules_cc load prepend on all repository_ctx.file statements in third_party/gpus
           find third_party/gpus/ -type f -name "*.bzl" | while read -r f; do
-            sed -i 's|repository_ctx\.file(\([^,]*BUILD[^,]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" + |g' "$f"
-            sed -i 's|repository_ctx\.template(\([^,]*BUILD[^,]*\),|repository_ctx.file(\1, "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n")\n  repository_ctx.template(\1,|g' "$f"
+            sed -i 's|repository_ctx\.file("BUILD",|repository_ctx.file("BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+            sed -i 's|repository_ctx\.file("rocm/BUILD",|repository_ctx.file("rocm/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
+            sed -i 's|repository_ctx\.file("crosstool/BUILD",|repository_ctx.file("crosstool/BUILD", "load(\\"@rules_cc//cc:defs.bzl\\", \\"cc_library\\", \\"cc_import\\")\\n" +|g' "$f"
           done
 
       - name: "Build PJRT C API CPU plugin"
