@@ -188,6 +188,7 @@ EOF
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
           bazel --output_user_root="C:/b" \
             build \
+            --deleted_packages=third_party/gpus/rocm,third_party/gpus/crosstool,third_party/gpus/cuda \
             --override_repository=local_config_rocm="${DUMMY_ROCM_PATH}" \
             --override_repository=local_config_cuda="${DUMMY_CUDA_PATH}" \
             --incompatible_enable_cc_toolchain_resolution=false \
