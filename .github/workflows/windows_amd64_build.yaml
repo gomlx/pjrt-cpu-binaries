@@ -32,7 +32,7 @@ jobs:
           fi
           VS_INSTALL_DIR="$("$VSWHERE" -latest -property installationPath | tr '\\' '/')"
           echo "Found VS Install Dir: $VS_INSTALL_DIR"
-          VS_WIN_PATH=$(cygpath -w "$VS_INSTALL_DIR")
+          VS_WIN_PATH=$(cygpath -d "$VS_INSTALL_DIR")
           VC_WIN_PATH="${VS_WIN_PATH}\\VC"
           echo "BAZEL_VC=${VC_WIN_PATH}" >> $GITHUB_ENV
           echo "BAZEL_VS=${VS_WIN_PATH}" >> $GITHUB_ENV
