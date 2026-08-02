@@ -114,6 +114,9 @@ jobs:
           echo "build --action_env=BAZEL_VC=${BAZEL_VC}" >> xla_configure.bazelrc
           echo "build --action_env=BAZEL_VS=${BAZEL_VS}" >> xla_configure.bazelrc
           echo "build --action_env=BAZEL_VC_FULL_VERSION=${BAZEL_VC_FULL_VERSION}" >> xla_configure.bazelrc
+          echo "build --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1" >> xla_configure.bazelrc
+          echo "build --repo_env=BAZEL_LLVM=C:/PROGRA~1/LLVM" >> xla_configure.bazelrc
+          echo "build --repo_env=USE_CLANG_CL=1" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
