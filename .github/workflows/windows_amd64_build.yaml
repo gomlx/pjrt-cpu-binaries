@@ -79,6 +79,49 @@ jobs:
             echo 'bazel_dep(name = "rules_cc", version = "0.0.17")' >> MODULE.bazel
           fi
 
+          # Override local_config_rocm and local_config_cuda in MODULE.bazel to point to dummy repos
+          mkdir -p ../dummy_rocm/rocm ../dummy_cuda/cuda
+          touch ../dummy_rocm/MODULE.bazel ../dummy_cuda/MODULE.bazel
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_rocm/BUILD
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_rocm/rocm/BUILD
+          echo 'cc_library(name = "rocm", visibility = ["//visibility:public"])' >> ../dummy_rocm/rocm/BUILD
+          
+          cat << 'EOF' > ../dummy_rocm/rocm/build_defs.bzl
+def if_rocm_is_configured(x, default = []):
+    return default
+def if_rocm_hip_khr_cooperative_groups(x, default = []):
+    return default
+EOF
+          cp ../dummy_rocm/rocm/build_defs.bzl ../dummy_rocm/build_defs.bzl
+
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_cuda/BUILD
+          echo 'load("@rules_cc//cc:defs.bzl", "cc_library")' > ../dummy_cuda/cuda/BUILD
+          echo 'cc_library(name = "cuda", visibility = ["//visibility:public"])' >> ../dummy_cuda/cuda/BUILD
+          
+          cat << 'EOF' > ../dummy_cuda/cuda/build_defs.bzl
+def if_cuda_is_configured(x, default = []):
+    return default
+def if_cuda(x, default = []):
+    return default
+def cuda_default_copts(x = []):
+    return []
+EOF
+          cp ../dummy_cuda/cuda/build_defs.bzl ../dummy_cuda/build_defs.bzl
+
+          DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
+          DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
+
+          cat << EOF >> MODULE.bazel
+local_repository_override(
+    module_name = "local_config_rocm",
+    path = "${DUMMY_ROCM_PATH}",
+)
+local_repository_override(
+    module_name = "local_config_cuda",
+    path = "${DUMMY_CUDA_PATH}",
+)
+EOF
+
           export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           PY_PATH="$(which python3 | tr '\\' '/')"
