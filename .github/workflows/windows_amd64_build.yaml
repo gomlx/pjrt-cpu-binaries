@@ -139,6 +139,8 @@ jobs:
             sed -i '/@rules_cc\/\/cc:defs.bzl/d' "$f"
             sed -i '1s|^|load("@rules_cc//cc:defs.bzl", "cc_library", "cc_import")\n|' "$f"
           done
+          # Clean stale cached local_config_rocm in Bazel output user root
+          rm -rf C:/b/*/external/+rocm_configure_ext+local_config_rocm 2>/dev/null || true
 
       - name: "Build PJRT C API CPU plugin"
         run: |
