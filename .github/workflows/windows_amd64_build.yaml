@@ -132,6 +132,11 @@ jobs:
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
 
+          # Fix Bazel 8 / rules_cc compatibility in local_config_rocm
+          # In newer Bazel versions, cc_library is no longer built-in without load()
+          find C:/b -name "local_config_rocm" -o -name "rocm_configure.bzl" 2>/dev/null || true
+          echo "build --deleted_packages=third_party/gpus/rocm" >> xla_configure.bazelrc
+
       - name: "Build PJRT C API CPU plugin"
         run: |
           # AVX-512 is disabled because is doesn't gracefully fallback to AVX2 in runtime,
@@ -147,6 +152,8 @@ jobs:
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
             --repo_env=BAZEL_COMPILER=C:/PROGRA~1/LLVM/bin/clang-cl.exe \
             --repo_env=USE_CLANG_CL=1 \
+            --repo_env=TF_NEED_ROCM=0 \
+            --repo_env=TF_NEED_CUDA=0 \
             --repo_env=BAZEL_LLVM="C:/PROGRA~1/LLVM" \
             --repo_env=BAZEL_LLVM_RESPECT_CLANG_ONLY=1 \
             --copt=-march=native \
