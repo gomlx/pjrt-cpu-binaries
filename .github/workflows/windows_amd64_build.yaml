@@ -32,9 +32,10 @@ jobs:
           fi
           VS_INSTALL_DIR="$("$VSWHERE" -latest -property installationPath | tr '\\' '/')"
           echo "Found VS Install Dir: $VS_INSTALL_DIR"
-          VC_DIR=$(cygpath -m "$VS_INSTALL_DIR/VC")
-          echo "BAZEL_VC=${VC_DIR}" >> $GITHUB_ENV
-          echo "BAZEL_VS=$(cygpath -m "$VS_INSTALL_DIR")" >> $GITHUB_ENV
+          VS_SHORT=$(cygpath -d "$VS_INSTALL_DIR" | tr '\\' '/')
+          VC_SHORT="${VS_SHORT}/VC"
+          echo "BAZEL_VC=${VC_SHORT}" >> $GITHUB_ENV
+          echo "BAZEL_VS=${VS_SHORT}" >> $GITHUB_ENV
           
           DUMPBIN_PATH=$(find "$VS_INSTALL_DIR" -name "dumpbin.exe" | head -n 1)
           echo "Found dumpbin at: $DUMPBIN_PATH"
@@ -108,11 +109,11 @@ jobs:
           echo "build --linkopt=/FORCE:MULTIPLE" >> xla_configure.bazelrc
 
           # 6. Compiler Paths
-          echo 'build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe' >> xla_configure.bazelrc
-          echo 'build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe' >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC=\"${BAZEL_VC}\"" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VS=\"${BAZEL_VS}\"" >> xla_configure.bazelrc
-          echo "build --action_env=BAZEL_VC_FULL_VERSION=\"${BAZEL_VC_FULL_VERSION}\"" >> xla_configure.bazelrc
+          echo "build --action_env=CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --action_env=CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC=${BAZEL_VC}" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VS=${BAZEL_VS}" >> xla_configure.bazelrc
+          echo "build --action_env=BAZEL_VC_FULL_VERSION=${BAZEL_VC_FULL_VERSION}" >> xla_configure.bazelrc
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
