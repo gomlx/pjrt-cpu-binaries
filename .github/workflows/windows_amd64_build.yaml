@@ -34,9 +34,10 @@ jobs:
           echo "Found VS Install Dir: $VS_INSTALL_DIR"
           
           # Initialize MSVC environment variables using vcvars64.bat
-          VCVARS="$(find "$VS_INSTALL_DIR" -name "vcvars64.bat" | head -n 1)"
-          echo "Found vcvars64.bat at: $VCVARS"
-          cmd.exe //c "\"$VCVARS\" && set" > vcvars_env.txt
+          VCVARS_POSIX="$(find "$VS_INSTALL_DIR" -name "vcvars64.bat" | head -n 1)"
+          VCVARS_WIN="$(cygpath -w "$VCVARS_POSIX")"
+          echo "Found vcvars64.bat at: $VCVARS_WIN"
+          cmd.exe //c "\"$VCVARS_WIN\" && set" > vcvars_env.txt
           while IFS='=' read -r key val; do
             if [ -n "$key" ] && [ -n "$val" ]; then
               if [ "$key" = "PATH" ] || [ "$key" = "Path" ] || [ "$key" = "path" ]; then
