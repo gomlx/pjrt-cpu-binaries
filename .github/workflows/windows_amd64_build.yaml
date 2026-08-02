@@ -168,6 +168,8 @@ EOF
 
           echo "build --override_repository=local_config_rocm=${DUMMY_ROCM_PATH}" >> xla_configure.bazelrc
           echo "build --override_repository=local_config_cuda=${DUMMY_CUDA_PATH}" >> xla_configure.bazelrc
+          echo "build --repo_env=override_repository=local_config_rocm=${DUMMY_ROCM_PATH}" >> xla_configure.bazelrc
+          echo "build --repo_env=override_repository=local_config_cuda=${DUMMY_CUDA_PATH}" >> xla_configure.bazelrc
 
       - name: "Build PJRT C API CPU plugin"
         run: |
@@ -177,8 +179,12 @@ EOF
           printf "\nStarting XLA bazel build:\n"
           export BAZEL_LLVM_RESPECT_CLANG_ONLY=1
           export BAZEL_LLVM="C:/PROGRA~1/LLVM"
+          DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
+          DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
           bazel --output_user_root="C:/b" \
             build \
+            --override_repository=local_config_rocm="${DUMMY_ROCM_PATH}" \
+            --override_repository=local_config_cuda="${DUMMY_CUDA_PATH}" \
             --incompatible_enable_cc_toolchain_resolution=false \
             --config=clang_local \
             --linkopt="--ld-path=C:/PROGRA~1/LLVM/bin/ld.lld.exe" \
