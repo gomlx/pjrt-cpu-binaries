@@ -1,5 +1,9 @@
 # pjrt-cpu-binaries
-[XLA](https://openxla.org/) build actions for PJRT CPU and binary releases for [**GoMLX**](https://github.com/gomlx/gomlx) and [go-xla](https://github.com/gomlx/go-xla).
+
+[XLA](https://openxla.org/) build actions for PJRT CPU and binary releases.
+
+These are maintained for [**GoMLX**](https://github.com/gomlx/gomlx) and [go-xla](https://github.com/gomlx/go-xla), but
+it can be used by others needing pre-built PJRT CPU plugins.
 
 These are kept on a separate repository to decouple the versioning from `go-xla`.
 
