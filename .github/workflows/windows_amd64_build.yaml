@@ -1,4 +1,3 @@
-# Based on version from @dfalbel in https://github.com/r-xla/pjrt-builds
 name: "windows/amd64"
 on:
   workflow_dispatch:
@@ -15,12 +14,8 @@ jobs:
 
     defaults:
       run:
-        shell:
-          bash
+        shell: bash
 
-          # artifact_name: pjrt_cpu.dll
-          # target: pjrt_c_api_cpu_plugin.so
-          # setup: |
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
@@ -84,123 +79,123 @@ jobs:
           touch ../dummy_rocm/MODULE.bazel ../dummy_cuda/MODULE.bazel
           
           cat << 'EOF' > ../dummy_rocm/BUILD
-load("@rules_cc//cc:defs.bzl", "cc_library")
-package(default_visibility = ["//visibility:public"])
-cc_library(name = "rocm")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
+          package(default_visibility = ["//visibility:public"])
+          cc_library(name = "rocm")
 
-config_setting(
-    name = "using_hipcc",
-    values = {"define": "never_true_dummy=1"},
-)
-EOF
+          config_setting(
+              name = "using_hipcc",
+              values = {"define": "never_true_dummy=1"},
+          )
+          EOF
           cat << 'EOF' > ../dummy_rocm/rocm/BUILD
-load("@rules_cc//cc:defs.bzl", "cc_library")
-package(default_visibility = ["//visibility:public"])
-cc_library(name = "rocm")
-cc_library(name = "hip")
-cc_library(name = "rocm_headers")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
+          package(default_visibility = ["//visibility:public"])
+          cc_library(name = "rocm")
+          cc_library(name = "hip")
+          cc_library(name = "rocm_headers")
 
-config_setting(
-    name = "using_hipcc",
-    values = {"define": "never_true_dummy=1"},
-)
-EOF
+          config_setting(
+              name = "using_hipcc",
+              values = {"define": "never_true_dummy=1"},
+          )
+          EOF
           
           cat << 'EOF' > ../dummy_rocm/rocm/build_defs.bzl
-load("@rules_cc//cc:defs.bzl", "cc_library")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
 
-def if_rocm(x, default = []):
-    return default
-def if_rocm_is_configured(x, default = []):
-    return default
-def if_rocm_hip_khr_cooperative_groups(x, default = []):
-    return default
-def if_cuda_or_rocm(x, default = []):
-    return default
-def if_gpu_is_configured(x, default = []):
-    return default
-def is_rocm_configured():
-    return False
-def get_rbe_amdgpu_pool(*args, **kwargs):
-    return ""
-def rocm_default_copts(*args, **kwargs):
-    return []
-def rocm_library(name, **kwargs):
-    cc_library(name = name, **kwargs)
-EOF
+          def if_rocm(x, default = []):
+              return default
+          def if_rocm_is_configured(x, default = []):
+              return default
+          def if_rocm_hip_khr_cooperative_groups(x, default = []):
+              return default
+          def if_cuda_or_rocm(x, default = []):
+              return default
+          def if_gpu_is_configured(x, default = []):
+              return default
+          def is_rocm_configured():
+              return False
+          def get_rbe_amdgpu_pool(*args, **kwargs):
+              return ""
+          def rocm_default_copts(*args, **kwargs):
+              return []
+          def rocm_library(name, **kwargs):
+              cc_library(name = name, **kwargs)
+          EOF
           cp ../dummy_rocm/rocm/build_defs.bzl ../dummy_rocm/build_defs.bzl
 
           cat << 'EOF' > ../dummy_cuda/BUILD
-load("@rules_cc//cc:defs.bzl", "cc_library")
-package(default_visibility = ["//visibility:public"])
-cc_library(name = "cuda")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
+          package(default_visibility = ["//visibility:public"])
+          cc_library(name = "cuda")
 
-config_setting(
-    name = "is_cuda_enabled",
-    values = {"define": "never_true_dummy=1"},
-)
-EOF
+          config_setting(
+              name = "is_cuda_enabled",
+              values = {"define": "never_true_dummy=1"},
+          )
+          EOF
           cat << 'EOF' > ../dummy_cuda/cuda/BUILD
-load("@rules_cc//cc:defs.bzl", "cc_library")
-package(default_visibility = ["//visibility:public"])
-cc_library(name = "cuda")
-cc_library(name = "cuda_headers")
-cc_library(name = "cudnn")
-cc_library(name = "cublas")
-cc_library(name = "cufft")
-cc_library(name = "curand")
-cc_library(name = "cusolver")
-cc_library(name = "cusparse")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
+          package(default_visibility = ["//visibility:public"])
+          cc_library(name = "cuda")
+          cc_library(name = "cuda_headers")
+          cc_library(name = "cudnn")
+          cc_library(name = "cublas")
+          cc_library(name = "cufft")
+          cc_library(name = "curand")
+          cc_library(name = "cusolver")
+          cc_library(name = "cusparse")
 
-config_setting(
-    name = "using_nvcc",
-    values = {"define": "never_true_dummy=1"},
-)
-config_setting(
-    name = "is_cuda_enabled",
-    values = {"define": "never_true_dummy=1"},
-)
-EOF
+          config_setting(
+              name = "using_nvcc",
+              values = {"define": "never_true_dummy=1"},
+          )
+          config_setting(
+              name = "is_cuda_enabled",
+              values = {"define": "never_true_dummy=1"},
+          )
+          EOF
           
           cat << 'EOF' > ../dummy_cuda/cuda/build_defs.bzl
-load("@rules_cc//cc:defs.bzl", "cc_library")
+          load("@rules_cc//cc:defs.bzl", "cc_library")
 
-def if_cuda(x, default = []):
-    return default
-def if_cuda_is_configured(x, default = []):
-    return default
-def if_cuda_or_rocm(x, default = []):
-    return default
-def if_gpu_is_configured(x, default = []):
-    return default
-def if_cuda_newer_than(version, if_true, if_false = []):
-    return if_false
-def is_cuda_configured():
-    return False
-def cuda_default_copts(*args, **kwargs):
-    return []
-def cuda_library(name, **kwargs):
-    cc_library(name = name, **kwargs)
-def cuda_header_library(name, **kwargs):
-    cc_library(name = name, **kwargs)
-def if_cuda_clang(x, default = []):
-    return default
-EOF
+          def if_cuda(x, default = []):
+              return default
+          def if_cuda_is_configured(x, default = []):
+              return default
+          def if_cuda_or_rocm(x, default = []):
+              return default
+          def if_gpu_is_configured(x, default = []):
+              return default
+          def if_cuda_newer_than(version, if_true, if_false = []):
+              return if_false
+          def is_cuda_configured():
+              return False
+          def cuda_default_copts(*args, **kwargs):
+              return []
+          def cuda_library(name, **kwargs):
+              cc_library(name = name, **kwargs)
+          def cuda_header_library(name, **kwargs):
+              cc_library(name = name, **kwargs)
+          def if_cuda_clang(x, default = []):
+              return default
+          EOF
           cp ../dummy_cuda/cuda/build_defs.bzl ../dummy_cuda/build_defs.bzl
 
           DUMMY_ROCM_PATH="$(cygpath -m "$(pwd)/../dummy_rocm")"
           DUMMY_CUDA_PATH="$(cygpath -m "$(pwd)/../dummy_cuda")"
 
           cat << EOF >> MODULE.bazel
-local_repository_override(
-    module_name = "local_config_rocm",
-    path = "${DUMMY_ROCM_PATH}",
-)
-local_repository_override(
-    module_name = "local_config_cuda",
-    path = "${DUMMY_CUDA_PATH}",
-)
-EOF
+          local_repository_override(
+              module_name = "local_config_rocm",
+              path = "${DUMMY_ROCM_PATH}",
+          )
+          local_repository_override(
+              module_name = "local_config_cuda",
+              path = "${DUMMY_CUDA_PATH}",
+          )
+          EOF
 
           export CC=C:/PROGRA~1/LLVM/bin/clang-cl.exe
           export CXX=C:/PROGRA~1/LLVM/bin/clang-cl.exe
@@ -261,15 +256,15 @@ EOF
 
           # Prepend local_repository overrides at the TOP of WORKSPACE
           cat << EOF > WORKSPACE.tmp
-local_repository(
-    name = "local_config_rocm",
-    path = "${DUMMY_ROCM_PATH}",
-)
-local_repository(
-    name = "local_config_cuda",
-    path = "${DUMMY_CUDA_PATH}",
-)
-EOF
+          local_repository(
+              name = "local_config_rocm",
+              path = "${DUMMY_ROCM_PATH}",
+          )
+          local_repository(
+              name = "local_config_cuda",
+              path = "${DUMMY_CUDA_PATH}",
+          )
+          EOF
           cat WORKSPACE >> WORKSPACE.tmp
           mv WORKSPACE.tmp WORKSPACE
 
