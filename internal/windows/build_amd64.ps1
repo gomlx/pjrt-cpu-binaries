@@ -397,7 +397,9 @@ cmd = "python -c \"import sys; text = open(sys.argv[1]).read().replace('\\$${HAV
         "--repo_env=BAZEL_COMPILER=clang-cl",
         "--repo_env=TF_NEED_ROCM=0",
         "--repo_env=TF_NEED_CUDA=0",
-        "--copt=-march=native",
+        "--define=xnn_enable_avx512amx=false",
+        "--define=xnn_enable_avx512fp16=false",
+        "--define=xnn_enable_avx512bf16=false",
         "--copt=-mavx2",
         "--copt=-mfma",
         "--copt=-mf16c",
@@ -408,10 +410,6 @@ cmd = "python -c \"import sys; text = open(sys.argv[1]).read().replace('\\$${HAV
         "--copt=-D_CRT_SECURE_NO_WARNINGS",
         "--copt=-DZSTD_DISABLE_ASM=1",
         "--host_copt=-DZSTD_DISABLE_ASM=1",
-        "--copt=-mamx-tile",
-        "--copt=-mamx-fp16",
-        "--copt=-mamx-bf16",
-        "--copt=-mamx-int8",
         "//xla/pjrt/c:pjrt_c_api_cpu_plugin.so"
     )
 
