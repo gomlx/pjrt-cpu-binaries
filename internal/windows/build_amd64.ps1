@@ -380,6 +380,21 @@ cmd = "python -c \"import sys; text = open(sys.argv[1]).read().replace('\\$${HAV
         Set-Content $_.FullName -Value $content
     }
 
+    # Patch XNNPACK build_params.bzl & ynnpack build_defs.bzl to add missing AVX512/AMX target-features to clang-cl
+    Get-ChildItem -Path "C:\b_root" -Filter "build_params.bzl" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "external" -and $_.FullName -notmatch "install" -and $_.FullName -match "XNNPACK" } | ForEach-Object {
+        $c = Get-Content $_.FullName -Raw
+        $feats = '["-Xclang", "-target-feature", "-Xclang", "+avx512f", "-Xclang", "-target-feature", "-Xclang", "+avx512cd", "-Xclang", "-target-feature", "-Xclang", "+avx512bw", "-Xclang", "-target-feature", "-Xclang", "+avx512dq", "-Xclang", "-target-feature", "-Xclang", "+avx512vl", "-Xclang", "-target-feature", "-Xclang", "+avx512vnni", "-Xclang", "-target-feature", "-Xclang", "+avx512bf16", "-Xclang", "-target-feature", "-Xclang", "+avx512vbmi", "-Xclang", "-target-feature", "-Xclang", "+avx512fp16", "-Xclang", "-target-feature", "-Xclang", "+amx-tile", "-Xclang", "-target-feature", "-Xclang", "+amx-int8", "-Xclang", "-target-feature", "-Xclang", "+amx-bf16", "-Xclang", "-target-feature", "-Xclang", "+amx-fp16"]'
+        $c = $c -replace 'copts = _x86_align_stack\(64\),', ('copts = _x86_align_stack(64) + ' + $feats + ',')
+        Set-Content $_.FullName -Value $c
+    }
+    Get-ChildItem -Path "C:\b_root" -Filter "build_defs.bzl" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "external" -and $_.FullName -notmatch "install" -and $_.FullName -match "ynnpack" } | ForEach-Object {
+        $c = Get-Content $_.FullName -Raw
+        $oldStr = 'return ["/arch:AVX512"]'
+        $newStr = 'return ["/arch:AVX512", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512vnni", "-mavx512bf16", "-mavx512vbmi", "-mavx512fp16", "-mamx-tile", "-mamx-fp16", "-mamx-bf16", "-mamx-int8"]'
+        $c = $c.Replace($oldStr, $newStr)
+        Set-Content $_.FullName -Value $c
+    }
+
     $buildArgs = @(
         "build",
         "--override_repository=local_config_rocm=${dummyRocmBazel}",
@@ -397,9 +412,6 @@ cmd = "python -c \"import sys; text = open(sys.argv[1]).read().replace('\\$${HAV
         "--repo_env=BAZEL_COMPILER=clang-cl",
         "--repo_env=TF_NEED_ROCM=0",
         "--repo_env=TF_NEED_CUDA=0",
-        "--define=xnn_enable_avx512amx=false",
-        "--define=xnn_enable_avx512fp16=false",
-        "--define=xnn_enable_avx512bf16=false",
         "--copt=-mavx2",
         "--copt=-mfma",
         "--copt=-mf16c",
@@ -421,6 +433,19 @@ cmd = "python -c \"import sys; text = open(sys.argv[1]).read().replace('\\$${HAV
             $content = $content -replace 'build_tools\["DUMPBIN"\]', 'build_tools.get("DUMPBIN", "dumpbin.exe")'
             $content = $content -replace 'return first_line\.split\(" "\)\[-1\]', 'return first_line.split("clang version ")[1].split(" ")[0]'
             Set-Content $_.FullName -Value $content
+        }
+        Get-ChildItem -Path "C:\b_root" -Filter "build_params.bzl" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "external" -and $_.FullName -notmatch "install" -and $_.FullName -match "XNNPACK" } | ForEach-Object {
+            $c = Get-Content $_.FullName -Raw
+            $feats = '["-Xclang", "-target-feature", "-Xclang", "+avx512f", "-Xclang", "-target-feature", "-Xclang", "+avx512cd", "-Xclang", "-target-feature", "-Xclang", "+avx512bw", "-Xclang", "-target-feature", "-Xclang", "+avx512dq", "-Xclang", "-target-feature", "-Xclang", "+avx512vl", "-Xclang", "-target-feature", "-Xclang", "+avx512vnni", "-Xclang", "-target-feature", "-Xclang", "+avx512bf16", "-Xclang", "-target-feature", "-Xclang", "+avx512vbmi", "-Xclang", "-target-feature", "-Xclang", "+avx512fp16", "-Xclang", "-target-feature", "-Xclang", "+amx-tile", "-Xclang", "-target-feature", "-Xclang", "+amx-int8", "-Xclang", "-target-feature", "-Xclang", "+amx-bf16", "-Xclang", "-target-feature", "-Xclang", "+amx-fp16"]'
+            $c = $c -replace 'copts = _x86_align_stack\(64\),', ('copts = _x86_align_stack(64) + ' + $feats + ',')
+            Set-Content $_.FullName -Value $c
+        }
+        Get-ChildItem -Path "C:\b_root" -Filter "build_defs.bzl" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "external" -and $_.FullName -notmatch "install" -and $_.FullName -match "ynnpack" } | ForEach-Object {
+            $c = Get-Content $_.FullName -Raw
+            $oldStr = 'return ["/arch:AVX512"]'
+            $newStr = 'return ["/arch:AVX512", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512vnni", "-mavx512bf16", "-mavx512vbmi", "-mavx512fp16", "-mamx-tile", "-mamx-fp16", "-mamx-bf16", "-mamx-int8"]'
+            $c = $c.Replace($oldStr, $newStr)
+            Set-Content $_.FullName -Value $c
         }
         & bazel --output_user_root="C:/b_root" @buildArgs
     }

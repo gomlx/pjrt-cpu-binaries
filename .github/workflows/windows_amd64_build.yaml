@@ -288,7 +288,9 @@ jobs:
           find /c/b_root -path "*/external/rules_cc/cc/private/toolchain/windows_cc_configure.bzl" -exec sed -i 's/build_tools\["DUMPBIN"\]/build_tools.get("DUMPBIN", "dumpbin.exe")/g' {} + 2>/dev/null || true
           find /c/b_root -path "*/external/rules_cc/cc/private/toolchain/windows_cc_configure.bzl" -exec sed -i 's/return first_line.split(" ")\[-1\]/return first_line.split("clang version ")[1].split(" ")[0]/g' {} + 2>/dev/null || true
           find /c/b_root -path "*/external/net_zstd/BUILD.bazel" -exec python -c "import sys; p=sys.argv[1]; c=open(p).read().replace('glob([\"decompress/*_amd64.S\"])', '[]'); open(p,'w').write(c)" {} \; 2>/dev/null || true
-          find /c/b_root -path "*/external/snappy/BUILD.bazel" -exec python -c "import sys, re; p=sys.argv[1]; c=open(p).read(); py='cmd = \"python -c \\\"import sys; text = open(sys.argv[1]).read().replace(\'\\\\\$${HAVE_SYS_UIO_H_01}\', \'0\').replace(\'\\\\\$${PROJECT_VERSION_MAJOR}\', \'1\').replace(\'\\\\\$${PROJECT_VERSION_MINOR}\', \'2\').replace(\'\\\\\$${PROJECT_VERSION_PATCH}\', \'2\'); open(sys.argv[2], \'w\').write(text)\\\" $< $@\"'; open(p,'w').write(re.sub(r'(?s)cmd = \(\"\"\"sed.*?\%\s*SNAPPY_VERSION\)', py, c))" {} \; 2>/dev/null || true
+          find /c/b_root -path "*/external/snappy/BUILD.bazel" -exec python -c "import sys, re; p=sys.argv[1]; c=open(p).read(); py='cmd = \"python -c \\\"import sys; text = open(sys.argv[1]).read().replace(\'\\\\\$${HAVE_SYS_UIO_H_01}\', \'0\').replace(\'\\\\\$${PROJECT_VERSION_MAJOR}\', \'1\').replace(\'\\\\\$${PROJECT_VERSION_MINOR}\', \'2\').replace(\'\\\\\$${PROJECT_VERSION_PATCH}\', \'2\'); open(sys.argv[2], \'w\').write(text)\\\" $< $@\"'; open(p,\'w\').write(re.sub(r'(?s)cmd = \(\"\"\"sed.*?\%\s*SNAPPY_VERSION\)', py, c))" {} \; 2>/dev/null || true
+          find /c/b_root -path "*/external/XNNPACK/build_params.bzl" -exec python -c "import sys; p=sys.argv[1]; c=open(p).read(); f='[\"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512f\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512cd\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512bw\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512dq\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vl\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vnni\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512bf16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vbmi\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512fp16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-tile\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-int8\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-bf16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-fp16\"]'; open(p,'w').write(c.replace('copts = _x86_align_stack(64),', 'copts = _x86_align_stack(64) + ' + f + ','))" {} \; 2>/dev/null || true
+          find /c/b_root -path "*/external/XNNPACK/ynnpack/build_defs.bzl" -exec python -c "import sys; p=sys.argv[1]; c=open(p).read(); old='return [\"/arch:AVX512\"]'; new='return [\"/arch:AVX512\", \"-mavx512f\", \"-mavx512cd\", \"-mavx512bw\", \"-mavx512dq\", \"-mavx512vl\", \"-mavx512vnni\", \"-mavx512bf16\", \"-mavx512vbmi\", \"-mavx512fp16\", \"-mamx-tile\", \"-mamx-fp16\", \"-mamx-bf16\", \"-mamx-int8\"]'; open(p,'w').write(c.replace(old, new))" {} \; 2>/dev/null || true
           
           BUILD_CMD="bazel --output_user_root=C:/b_root build \
             --override_repository=local_config_rocm=${DUMMY_ROCM_PATH} \
@@ -306,9 +308,6 @@ jobs:
             --repo_env=BAZEL_COMPILER=clang-cl \
             --repo_env=TF_NEED_ROCM=0 \
             --repo_env=TF_NEED_CUDA=0 \
-            --define=xnn_enable_avx512amx=false \
-            --define=xnn_enable_avx512fp16=false \
-            --define=xnn_enable_avx512bf16=false \
             --copt=-mavx2 \
             --copt=-mfma \
             --copt=-mf16c \
@@ -322,9 +321,11 @@ jobs:
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so"
 
           eval $BUILD_CMD || {
-            echo "Patching external rules_cc and retrying build..."
+            echo "Patching external rules_cc & XNNPACK and retrying build..."
             find /c/b_root -path "*/external/rules_cc/cc/private/toolchain/windows_cc_configure.bzl" -exec sed -i 's/build_tools\["DUMPBIN"\]/build_tools.get("DUMPBIN", "dumpbin.exe")/g' {} + 2>/dev/null || true
             find /c/b_root -path "*/external/rules_cc/cc/private/toolchain/windows_cc_configure.bzl" -exec sed -i 's/return first_line.split(" ")\[-1\]/return first_line.split("clang version ")[1].split(" ")[0]/g' {} + 2>/dev/null || true
+            find /c/b_root -path "*/external/XNNPACK/build_params.bzl" -exec python -c "import sys; p=sys.argv[1]; c=open(p).read(); f='[\"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512f\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512cd\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512bw\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512dq\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vl\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vnni\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512bf16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512vbmi\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+avx512fp16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-tile\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-int8\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-bf16\", \"-Xclang\", \"-target-feature\", \"-Xclang\", \"+amx-fp16\"]'; open(p,'w').write(c.replace('copts = _x86_align_stack(64),', 'copts = _x86_align_stack(64) + ' + f + ','))" {} \; 2>/dev/null || true
+          find /c/b_root -path "*/external/XNNPACK/ynnpack/build_defs.bzl" -exec python -c "import sys; p=sys.argv[1]; c=open(p).read(); old='return [\"/arch:AVX512\"]'; new='return [\"/arch:AVX512\", \"-mavx512f\", \"-mavx512cd\", \"-mavx512bw\", \"-mavx512dq\", \"-mavx512vl\", \"-mavx512vnni\", \"-mavx512bf16\", \"-mavx512vbmi\", \"-mavx512fp16\", \"-mamx-tile\", \"-mamx-fp16\", \"-mamx-bf16\", \"-mamx-int8\"]'; open(p,'w').write(c.replace(old, new))" {} \; 2>/dev/null || true
             eval $BUILD_CMD
           }
 
