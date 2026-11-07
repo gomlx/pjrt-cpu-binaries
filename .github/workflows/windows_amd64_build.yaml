@@ -280,7 +280,7 @@ jobs:
 
           echo "Applying dllexport patch ---------------"
           git apply --ignore-whitespace --3way ../internal/patches/windows/export.patch
-          python -c "import sys; p='xla/tsl/util/filewrapper.cc'; c=open(p).read().replace('#if defined(COMPILER_MSVC)\\n', '#if defined(COMPILER_MSVC) || defined(_MSC_VER) || defined(__clang__)\\n'); open(p,'w').write(c)" || true
+          python -c "p='xla/tsl/util/filewrapper.cc'; c=open(p).read().replace('#if defined(COMPILER_MSVC)', '#if defined(COMPILER_MSVC) || defined(_MSC_VER) || defined(__clang__)'); assert 'defined(_MSC_VER)' in c; open(p,'w').write(c)"
 
           # Patch third_party/net_zstd.BUILD directly in source tree to disable .S assembly on Windows
           python -c "p='third_party/net_zstd.BUILD'; c=open(p).read().replace('glob([\"decompress/*_amd64.S\"])', '[]'); open(p,'w').write(c)"
