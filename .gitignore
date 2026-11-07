@@ -1,8 +1,11 @@
 # Build artefacts.
 /pjrt_cpu_amazonlinux_amd64.tar.gz
+/pjrt_cpu_darwin_arm64.tar.gz
 /pjrt_cpu_linux_amd64.tar.gz
+/pjrt_cpu_linux_arm64.tar.gz
 /pjrt_cpu_windows_amd64.zip
 *.dll
+*.so
 /dummy_rocm/
 /dummy_cuda/
 

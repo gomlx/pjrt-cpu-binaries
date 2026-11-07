@@ -120,7 +120,6 @@ jobs:
         run: |
           # Paths and names
           TARBALL_NAME="pjrt_cpu_linux_amd64.tar.gz"
-          TARBALL_NAME_AMAZONLINUX="pjrt_cpu_amazonlinux_amd64.tar.gz"
           BINARY_DIR="xla/bazel-bin/xla/pjrt/c"
           BINARY_NAME="pjrt_c_api_cpu_plugin.so"
           NEW_BINARY_NAME="pjrt_c_api_cpu_${RELEASE_VERSION}_plugin.so"
@@ -131,16 +130,11 @@ jobs:
           echo "Successfully created ${TARBALL_NAME} containing ${NEW_BINARY_NAME}"
           echo "TARBALL_NAME=${TARBALL_NAME}" >> $GITHUB_ENV
 
-          # Same binary for AmazonLinux 2023
-          ln ${TARBALL_NAME} ${TARBALL_NAME_AMAZONLINUX}
-          echo "TARBALL_NAME_AMAZONLINUX=${TARBALL_NAME_AMAZONLINUX}" >> $GITHUB_ENV
-
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
           files: |
             ${{ env.TARBALL_NAME }}
-            ${{ env.TARBALL_NAME_AMAZONLINUX }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
