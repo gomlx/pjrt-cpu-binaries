@@ -81,12 +81,20 @@ jobs:
           printf "\nStarting XLA bazel build:\n"
           # Added --copt and --host_copt flags to bypass the deprecation error
           bazel build -c opt \
+            --macos_minimum_os=11.0 \
+            --host_macos_minimum_os=11.0 \
             --copt="-w" \
             --host_copt="-w" \
+            --features=-layering_check \
+            --host_features=-layering_check \
             //xla/service/cpu:runtime_matmul  
           bazel build -c opt \
+            --macos_minimum_os=11.0 \
+            --host_macos_minimum_os=11.0 \
             --copt="-w" \
             --host_copt="-w" \
+            --features=-layering_check \
+            --host_features=-layering_check \
             //xla/pjrt/c:pjrt_c_api_cpu_plugin.so
 
       - name: "Package the binary"
